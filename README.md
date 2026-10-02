@@ -77,8 +77,8 @@ including imported themes; **Reset to package** restores the package appearance.
 | Composer / input box color and opacity | 0–100% opacity | Sets the input surface separately from message boxes. |
 | Your message darkness | 0–100% | Adds a dark background behind your messages. |
 | AI reply darkness | 0–100% | Adds a dark background behind assistant replies. |
-| Page background opacity | 0�100% | Controls dark tint behind Settings, Profile, Projects, and the native Upgrade page. |
-| Dialog / project chooser opacity | 0�100% | Controls dialog and project chooser surfaces while preserving nested controls. |
+| Page background opacity | 0-100% | Controls dark tint behind Settings, Profile, Projects, and the native Upgrade page. |
+| Dialog / project chooser opacity | 0-100% | Controls dialog and project chooser surfaces while preserving nested controls. |
 | Thinking / activity darkness | 0–100% | Adds dark backgrounds behind working timers and thinking text. |
 
 For bright images, start with 60–80% message darkness. Enabled darkness uses
