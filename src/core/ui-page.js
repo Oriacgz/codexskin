@@ -10,13 +10,13 @@ function appClient(token, sidebarSurface) {
     clearTimeout(toastTimer);
     $('toast').textContent = message;
     $('toast').className = 'toast show' + (failure ? ' error' : '');
-    if ($('editor').open) { $('editorNotice').textContent = message; $('editorNotice').hidden = false; }
+    if ($('editor').open) { $('editorNotice').textContent = message; $('editorNotice').hidden = false; if(failure)$('editorNotice').scrollIntoView({block:'nearest'}); }
     toastTimer = setTimeout(() => { $('toast').className = 'toast'; }, 6500);
   }
   async function api(route, options = {}) {
     const response = await fetch(base + route, {signal: AbortSignal.timeout(60000), ...options});
-    if (!response.ok) throw new Error('Request failed (' + response.status + ')');
     const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Request failed (' + response.status + ')');
     if (result.ok === false) throw new Error(result.error || 'Action failed');
     return result;
   }
@@ -32,6 +32,7 @@ function appClient(token, sidebarSurface) {
   async function action(label, work) {
     if (busy) return;
     setBusy(true,label);
+    if($('editor').open){$('editorNotice').textContent=label;$('editorNotice').hidden=false;}
     try {await work();} catch(error) {toast(error.message,true);}
     finally {setBusy(false);await refresh();}
   }
@@ -113,7 +114,7 @@ function appClient(token, sidebarSurface) {
     });
   }
   let editingId = null, editorDefaults, imageBase64 = null, imageObjectUrl = null;
-  const settingKeys = ['textColorsEnabled','primaryTextColor','secondaryTextColor','brightness','accent','sidebarColor','sidebarOpacity','sidebarDarkness','chatColor','chatOpacity','userMessageDarkness','assistantMessageDarkness','activityDarkness'];
+  const settingKeys = ['textColorsEnabled','primaryTextColor','secondaryTextColor','brightness','accent','sidebarColor','sidebarOpacity','sidebarDarkness','chatColor','chatOpacity','userMessageDarkness','assistantMessageDarkness','activityDarkness','pageOpacity','dialogOpacity'];
   function readSettings() {
     return Object.fromEntries(settingKeys.map(key=>[key, key==='textColorsEnabled' ? $(key).checked : /brightness|Opacity|Darkness/.test(key) ? Number($(key).value) : $(key).value]));
   }
@@ -125,6 +126,7 @@ function appClient(token, sidebarSurface) {
     $('previewSidebar').style.color=values.sidebarDarkness>0?'#f4f6f8':'';
     $('sidebarDarknessValue').textContent=values.sidebarDarkness===0?'0% · Off':values.sidebarDarkness+'%';
     $('previewChat').style.background=rgba(values.chatColor,values.chatOpacity);
+    document.querySelector('.mock-main').style.background=rgba('#101316',values.pageOpacity);
     for (const [key,id] of [['userMessageDarkness','previewUserMessage'],['assistantMessageDarkness','previewAssistantMessage'],['activityDarkness','previewActivity']]) {
       $(id).style.background=rgba('#101316',values[key]);
       $(key+'Value').textContent=values[key]===0?'0% · Off':values[key]+'%';
@@ -134,9 +136,9 @@ function appClient(token, sidebarSurface) {
     for(const id of ['previewUserMessage','previewAssistantMessage'])$(id).style.color=values.textColorsEnabled?values.primaryTextColor:'';
     $('previewActivity').style.color=values.textColorsEnabled?values.secondaryTextColor:'';
     document.querySelector('.mock-main').style.color=values.textColorsEnabled?values.primaryTextColor:'';
-    for(const key of ['brightness','sidebarOpacity','chatOpacity']) $(key+'Value').textContent=values[key]+'%'+(key!=='brightness'&&values[key]===100?' · Opaque':'');
+    for(const key of ['brightness','sidebarOpacity','chatOpacity','pageOpacity','dialogOpacity']) $(key+'Value').textContent=values[key]+'%'+(key!=='brightness'&&values[key]===100?' · Opaque':'');
   }
-  function fillSettings(values) { for(const key of settingKeys) {if(key==='textColorsEnabled')$(key).checked=values[key] ?? false;else $(key).value=values[key] ?? (key==='primaryTextColor'?'#f4f6f8':'#a1a8b0');}updatePreview(); }
+  function fillSettings(values) { for(const key of settingKeys) {if(key==='textColorsEnabled')$(key).checked=values[key] ?? false;else $(key).value=values[key] ?? (key==='pageOpacity'?32:key==='dialogOpacity'?65:key==='primaryTextColor'?'#f4f6f8':'#a1a8b0');}updatePreview(); }
   async function openEditor(id) {
     if(busy) return;
     await action('Opening theme editor…',async()=>{
@@ -149,7 +151,7 @@ function appClient(token, sidebarSurface) {
       if(id)$('editorImage').src=base+'image/'+encodeURIComponent(id);else $('editorImage').removeAttribute('src');
       $('editorImage').hidden=!id;
       $('themeName').value='';$('customImage').value='';
-      fillSettings(editorDefaults?.settings ?? {brightness:100,accent:'#b7f0ce',sidebarColor:'#191e22',sidebarOpacity:80,sidebarDarkness:0,chatColor:'#191e22',chatOpacity:80,userMessageDarkness:0,assistantMessageDarkness:0,activityDarkness:0});
+      fillSettings(editorDefaults?.settings ?? {brightness:100,accent:'#b7f0ce',sidebarColor:'#191e22',sidebarOpacity:80,sidebarDarkness:0,chatColor:'#191e22',chatOpacity:80,userMessageDarkness:0,assistantMessageDarkness:0,activityDarkness:0,pageOpacity:32,dialogOpacity:65});
       $('editor').showModal();
     });
   }
@@ -191,6 +193,7 @@ function appClient(token, sidebarSurface) {
         const data=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('Could not read image'));reader.readAsDataURL(file);});
         if(!/^data:image\/(png|jpeg|webp);base64,/.test(data))throw new Error('Choose PNG, JPEG or WebP.');
         imageBase64=data.split(',')[1];
+        if(!editingId&&!$('themeName').value.trim())$('themeName').value=file.name.replace(/\.[^.]+$/, '').replace(/[\u0000-\u001f\u007f]/g,'').trim().slice(0,80)||'My theme';
         if(imageObjectUrl)URL.revokeObjectURL(imageObjectUrl);imageObjectUrl=url;
         $('editorImage').src=url;$('editorImage').hidden=false;updatePreview();
       } catch(error){URL.revokeObjectURL(url);throw error;}
@@ -198,7 +201,8 @@ function appClient(token, sidebarSurface) {
   };
   $('saveTheme').onclick=()=>{
     const settings=readSettings(), id=editingId, name=$('themeName').value.trim();
-    if(!id&&(!name||!imageBase64)){toast('Add a theme name and a PNG, JPEG or WebP background.',true);return;}
+    if(!id&&!name){toast('Enter a theme name before creating it.',true);$('themeName').focus();return;}
+    if(!id&&!imageBase64){toast('Choose a PNG, JPEG or WebP image and wait for its preview.',true);$('customImage').focus();return;}
     action(id?'Saving theme settings…':'Creating theme…',async()=>{
       const result=id?await post('theme/'+encodeURIComponent(id)+'/settings',settings):await post('create',{name,image:imageBase64,settings});
       $('editor').close();
@@ -266,10 +270,10 @@ dialog{width:min(1120px,96vw);border-color:#53655b;border-radius:22px}.editor-la
 <div id="activity" class="activity" role="status" hidden></div><div class="utility-row"><span>Check styling in your connected Codex windows.</span><button class="secondary" id="compatibilityBtn">Check compatibility</button></div><p id="compatibilityResult" role="status" hidden style="white-space:pre-line"></p><section id="installedThemes" class="installed-themes" aria-labelledby="libraryTitle"><div class="section-heading"><h2 id="libraryTitle">Installed themes</h2><span class="count" id="themeCount">0 themes</span></div><div class="theme-switcher"><div><strong id="currentTheme">Current theme: Official look</strong><p>Switch between your imported and custom themes. Saved settings stay with each theme.</p></div><div class="switch-controls"><select id="themePicker" aria-label="Installed theme"><option value="">Choose an installed theme</option></select><button id="switchTheme" class="primary" disabled>Switch theme</button></div></div><div id="empty" class="empty" hidden><div class="empty-icon" aria-hidden="true">◈</div><h3>Your collection starts with one theme.</h3><p>Drop a .zip or .codextheme package here, or choose one from your files.<br>Your first theme will be applied automatically.</p><button class="secondary" id="emptyImport">Choose a theme package</button><p class="small">PNG, JPEG and WebP backgrounds · Local files only</p></div><label class="theme-search">Find a theme<input type="search" id="themeSearch" placeholder="Search installed themes..." autocomplete="off"></label><p id="noSearchResults" hidden role="status">No themes match your search.</p><div id="grid" class="grid" aria-live="polite"></div></section>
 <section class="preferences" id="preferences" aria-labelledby="preferencesTitle"><div class="section-heading"><h2 id="preferencesTitle">App preferences</h2><span class="count">Preferences</span></div><div class="settings-panel"><div class="setting"><span><strong>Your launches stay yours</strong><small>Windows Search launches stay open. Use Launch skinned Codex when you want the theme profile.</small></span></div><label class="setting"><span><strong>Ready when you sign in</strong><small>Start codexskin in the tray when you log in to Windows.</small></span><input type="checkbox" id="autostartChk" aria-label="Launch at login"></label></div><div class="restore-row"><p>Want a clean slate? Restore Codex's original appearance anytime.</p><button class="secondary" id="restoreBtn">Restore official look</button></div></section>
 </main></div><div class="drop-overlay" aria-hidden="true">Drop your theme package here</div><dialog id="editor" aria-labelledby="editorTitle"><div class="editor-heading"><div><p class="eyebrow">MAKE IT YOURS</p><h2 id="editorTitle">Theme editor</h2></div><button class="remove-button" id="closeEditor" aria-label="Close theme editor">×</button></div>
-<div class="editor-layout"><div class="editor-preview" aria-label="Approximate theme preview"><img id="editorImage" alt="Background preview"><div class="mock-sidebar" id="previewSidebar"><strong>Codex</strong><p>＋ New chat</p><p>Projects</p><p>Recent chats</p></div><div class="mock-main"><span class="preview-caption">LIVE PREVIEW</span><div id="previewActivity" class="mock-message">Working for 14s · Thinking…</div><div id="previewUserMessage" class="mock-message mock-user">You: Explain this change.</div><div id="previewAssistantMessage" class="mock-message">Codex: Here is a clear answer, even over a bright background.</div><div id="previewChat" class="mock-chat">Ask Codex anything…<span id="previewAccent">↑</span></div></div></div>
+<p id="editorNotice" class="editor-note" role="status" hidden></p><div class="editor-layout"><div class="editor-preview" aria-label="Approximate theme preview"><img id="editorImage" alt="Background preview"><div class="mock-sidebar" id="previewSidebar"><strong>Codex</strong><p>＋ New chat</p><p>Projects</p><p>Recent chats</p></div><div class="mock-main"><span class="preview-caption">LIVE PREVIEW</span><div id="previewActivity" class="mock-message">Working for 14s · Thinking…</div><div id="previewUserMessage" class="mock-message mock-user">You: Explain this change.</div><div id="previewAssistantMessage" class="mock-message">Codex: Here is a clear answer, even over a bright background.</div><div id="previewChat" class="mock-chat">Ask Codex anything…<span id="previewAccent">↑</span></div></div></div>
 <div class="editor-controls"><div id="creatorFields"><label class="editor-field">Theme name<input id="themeName" maxlength="80" placeholder="My workspace"></label><label class="editor-field">Background image<input type="file" id="customImage" accept="image/png,image/jpeg,image/webp"><small>PNG, JPEG or WebP · Maximum 10 MiB</small></label></div>
 <label class="editor-field">Background brightness <output id="brightnessValue"></output><input type="range" id="brightness" min="20" max="180" value="100"></label><label class="editor-field color-field">Accent color<input type="color" id="accent" value="#b7f0ce"></label>
 <fieldset><legend>Text colors</legend><button type="button" class="secondary" id="resetTextColors">Reset text colors</button><label class="editor-field">Use custom text colors<input type="checkbox" id="textColorsEnabled"></label><label class="editor-field color-field">Primary text (normally white)<input type="color" id="primaryTextColor" value="#f4f6f8"></label><label class="editor-field color-field">Secondary text (normally grey)<input type="color" id="secondaryTextColor" value="#a1a8b0"></label><small>Enable to override normal text and muted labels. Accent links and code syntax keep their colors.</small></fieldset><fieldset><legend>Sidebar</legend><label class="editor-field">Sidebar darkness <output id="sidebarDarknessValue"></output><input type="range" id="sidebarDarkness" min="0" max="100" value="0"></label><p class="editor-note">Darken the sidebar without changing its saved color. 0% keeps your surface settings; 100% makes it fully dark.</p><label class="editor-field color-field">Surface color<input type="color" id="sidebarColor" value="#191e22"></label><div class="surface-buttons"><button class="secondary" id="sidebarGlass">Translucent</button><button class="secondary" id="sidebarOpaque">Opaque</button></div><label class="editor-field">Opacity <output id="sidebarOpacityValue"></output><input type="range" id="sidebarOpacity" min="0" max="100" value="80"></label></fieldset>
-<fieldset><legend>Composer / input box</legend><label class="editor-field color-field">Surface color<input type="color" id="chatColor" value="#191e22"></label><div class="surface-buttons"><button class="secondary" id="chatGlass">Translucent</button><button class="secondary" id="chatOpaque">Opaque</button></div><label class="editor-field">Opacity <output id="chatOpacityValue"></output><input type="range" id="chatOpacity" min="0" max="100" value="80"></label></fieldset><fieldset><legend>Message readability</legend><label class="editor-field">Your message darkness <output id="userMessageDarknessValue"></output><input type="range" id="userMessageDarkness" min="0" max="100" value="0"></label><label class="editor-field">AI reply darkness <output id="assistantMessageDarknessValue"></output><input type="range" id="assistantMessageDarkness" min="0" max="100" value="0"></label><label class="editor-field">Thinking / activity darkness <output id="activityDarknessValue"></output><input type="range" id="activityDarkness" min="0" max="100" value="0"></label><small>0% keeps the original appearance. Try 60–80% over bright images. Message text becomes light when boxes are enabled.</small></fieldset><p class="editor-note">Preview is approximate. Saved settings follow this theme across launches. Reset restores its original package appearance.</p></div></div>
-<p id="editorNotice" class="editor-note" role="status" hidden></p><div class="editor-footer"><button class="secondary" id="resetTheme">Reset to package</button><div><button class="secondary" id="cancelEditor">Cancel</button><button class="primary" id="saveTheme">Save changes</button></div></div></dialog><div id="toast" class="toast" role="status" aria-live="polite"></div><script>${client}</script></body></html>`;
+<fieldset><legend>Composer / input box</legend><label class="editor-field color-field">Surface color<input type="color" id="chatColor" value="#191e22"></label><div class="surface-buttons"><button class="secondary" id="chatGlass">Translucent</button><button class="secondary" id="chatOpaque">Opaque</button></div><label class="editor-field">Opacity <output id="chatOpacityValue"></output><input type="range" id="chatOpacity" min="0" max="100" value="80"></label></fieldset><fieldset><legend>Pages and dialogs</legend><label class="editor-field">Page background opacity <output id="pageOpacityValue"></output><input type="range" id="pageOpacity" min="0" max="100" value="32"></label><label class="editor-field">Dialog / project chooser opacity <output id="dialogOpacityValue"></output><input type="range" id="dialogOpacity" min="0" max="100" value="65"></label><small>Pages include Settings, Profile, and Projects. 0% is transparent; 100% is opaque. Dialog controls and cards keep their own backgrounds.</small></fieldset><fieldset><legend>Message readability</legend><label class="editor-field">Your message darkness <output id="userMessageDarknessValue"></output><input type="range" id="userMessageDarkness" min="0" max="100" value="0"></label><label class="editor-field">AI reply darkness <output id="assistantMessageDarknessValue"></output><input type="range" id="assistantMessageDarkness" min="0" max="100" value="0"></label><label class="editor-field">Thinking / activity darkness <output id="activityDarknessValue"></output><input type="range" id="activityDarkness" min="0" max="100" value="0"></label><small>0% keeps the original appearance. Try 60–80% over bright images. Message text becomes light when boxes are enabled.</small></fieldset><p class="editor-note">Preview is approximate. Saved settings follow this theme across launches. Reset restores its original package appearance.</p></div></div>
+<div class="editor-footer"><button class="secondary" id="resetTheme">Reset to package</button><div><button class="secondary" id="cancelEditor">Cancel</button><button class="primary" id="saveTheme">Save changes</button></div></div></dialog><div id="toast" class="toast" role="status" aria-live="polite"></div><script>${client}</script></body></html>`;
 }

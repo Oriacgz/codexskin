@@ -131,6 +131,10 @@ html[data-codexskin="active"] [class*="app-shell"] { background: transparent !im
       }
     }
     out += 'html[data-codexskin="active"] { isolation: isolate; --color-accent: ' + c.accent + '; --color-accent-primary: ' + c.accent + '; }';
+    const accentLuminance = [1,3,5].map(i=>parseInt(c.accent.slice(i,i+2),16)/255).map(v=>v<=.04045?v/12.92:Math.pow((v+.055)/1.055,2.4)).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+    const accentInk = accentLuminance > .179 ? '#101316' : '#ffffff';
+    out += 'html[data-codexskin="active"], html[data-codexskin="active"] body, html[data-codexskin="active"] [data-theme] { --color-accent: ' + c.accent + ' !important; --color-accent-primary: ' + c.accent + ' !important; --color-background-primary-solid: ' + c.accent + ' !important; --color-background-primary-solid-hover: color-mix(in srgb,' + c.accent + ' 88%,white) !important; --color-background-primary-solid-active: color-mix(in srgb,' + c.accent + ' 88%,black) !important; --color-text-primary-solid: ' + accentInk + ' !important; --color-background-mode-toggle-selected: ' + c.accent + ' !important; --color-text-mode-toggle-accent: ' + c.accent + ' !important; }';
+
     if (c.textColorsEnabled) {
       const scope = 'html[data-codexskin="active"]';
       out += scope + ', ' + scope + ' body, ' + scope + ' [data-theme] { --color-text: ' + c.primaryTextColor + ' !important; --color-text-primary: ' + c.primaryTextColor + ' !important; --color-text-secondary: ' + c.secondaryTextColor + ' !important; --color-text-tertiary: ' + c.secondaryTextColor + ' !important; --color-icon-secondary: ' + c.secondaryTextColor + '; --color-icon-tertiary: ' + c.secondaryTextColor + '; --ds-theme-color-text: ' + c.primaryTextColor + '; --ds-theme-color-muted: ' + c.secondaryTextColor + '; color: ' + c.primaryTextColor + '; }';
@@ -156,6 +160,10 @@ html[data-codexskin="active"] [class*="app-shell"] { background: transparent !im
     for (const selector of PART_SELECTORS.sidebar.split(',')) {
       out += 'html[data-codexskin="active"] ' + selector.trim() + ' .sidebar-navigation { background: transparent !important; }';
     }
+    // A collapsed sidebar's hover panel extends beyond the rail's backdrop.
+    // Paint only its outer navigation surface, not nested conversation panels.
+    const hoverSidebar = sidebarSurface({...c,sidebarOpacity:Math.max(32,c.sidebarOpacity)});
+    out += 'html[data-codexskin="active"] [data-slate-sidebar-peeking="true"] .sidebar-navigation:not(.sidebar-navigation .sidebar-navigation) { background: ' + hoverSidebar + ' !important; backdrop-filter: blur(' + (c.sidebarOpacity < 100 && c.sidebarDarkness < 100 ? 12 : 0) + 'px) !important; }';
     out += 'html[data-codexskin="active"] [data-thread-scroll-footer="true"], html[data-codexskin="active"] [data-thread-scroll-footer="true"] .pointer-events-none.absolute.inset-x-0 { background: transparent !important; }';
     // The scroll spacer carries a separate fade above the footer itself.
     out += 'html[data-codexskin="active"] .thread-scroll-container .pointer-events-none.absolute.inset-x-0.from-surface { background: transparent !important; }';
@@ -170,9 +178,21 @@ html[data-codexskin="active"] [class*="app-shell"] { background: transparent !im
     for (const selector of ['[data-app-shell-main-surface="default"]', '[class*="_FullHeightPageSurfaceLayout_"]', '[class*="_PageSurface_"]', '[class*="_WorkspaceContent_"]::before', '[data-app-shell-workspace-row]::before']) {
       out += 'html[data-codexskin="active"] ' + selector + ' { background: transparent !important; }';
     }
-    for (const selector of ['[data-app-shell-page-header]', '[data-app-shell-main-titlebar]']) {
-      out += 'html[data-codexskin="active"] ' + selector + ' { background: ' + sidebarSurface(c) + ' !important; }';
-    }
+    // Floating titlebars overlap the page header. Tint only the page header,
+    // never both surfaces or their nested header wrappers.
+    out += 'html[data-codexskin="active"] [data-app-shell-page-header] { background: ' + rgba('#101316',c.pageOpacity) + ' !important; }';
+    out += 'html[data-codexskin="active"] [data-app-shell-main-titlebar], html[data-codexskin="active"] [data-app-shell-page-header] [data-app-shell-page-header] { background: transparent !important; }';
+    // Native settings panels have their own opaque Electron surface.
+    // Tint that wrapper only; preserve the nested settings cards and controls.
+    out += 'html[data-codexskin="active"] [class~="h-full"][class~="electron:bg-surface"]:has([class~="group/settings"]) { background: ' + rgba('#101316',c.pageOpacity) + ' !important; }';
+    // Profile and Projects use full-height surfaces with direct scroll containers,
+    // rather than the settings group's Electron wrapper.
+    out += 'html[data-codexskin="active"] [class~="bg-surface"][class~="h-full"][class~="flex-col"]:has(> [class~="scrollbar-stable"], > [class~="overflow-y-auto"]) { background: ' + rgba('#101316',c.pageOpacity) + ' !important; }';
+    // The native upgrade route renders a full-height main surface.
+    out += 'html[data-codexskin="active"] main[class~="h-full"][class~="bg-surface"] { background: ' + rgba('#101316',c.pageOpacity) + ' !important; }';
+    // Dialogs and project selectors get one translucent surface.
+    out += 'html[data-codexskin="active"] :is([role="dialog"],dialog) { background: ' + rgba('#101316',c.dialogOpacity) + ' !important; backdrop-filter: blur(12px); }';
+    out += 'html[data-codexskin="active"] :is([class*="project-selector"],[class*="_ProjectSelector_"],[class*="_ComposerLayoutHeader_"],.composer-action-bar,[data-composer-action-bar]) { background: ' + rgba('#101316',c.dialogOpacity) + ' !important; }';
     // Image-generation and other composers paint their rounded body separately.
     out += 'html[data-codexskin="active"] [class*="_ComposerLayoutRoot_"] { --composer-layout-surface-background: transparent; --composer-layout-surface-shadow: none; }';
     out += 'html[data-codexskin="active"] [class*="_ComposerLayoutRoot_"]:has([class*="_ComposerLayoutBody_"]) { background: transparent !important; backdrop-filter: none !important; }';

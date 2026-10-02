@@ -11,13 +11,16 @@ profile, so you may need to sign in again in that profile.
 
 - Installed themes section with previews, current-theme indicator, and quick switching.
 - Import local `.zip` and `.codextheme` themes in supported simple and DreamSkin manifest formats.
-- Create a theme using a PNG, JPEG, or WebP image, up to 10 MiB.
+- Create a theme using a PNG, JPEG, or WebP image, up to 10 MiB. Image filenames provide an editable default name; progress and errors appear inside the editor.
 - Choose app-wide primary (normally white) and secondary (normally grey) text colors per theme.
 - Subtle dark surfaces behind automation suggestion cards improve readability.
 - Customize image brightness (20–180%), accent color, and sidebar/composer colors.
 - Set independent sidebar and composer opacity (0–100%), with translucent and opaque presets.
 - Adjust darkness independently for the sidebar, your messages, AI replies, and thinking/activity text.
+- Collapsed sidebar hover panels keep their tint and blur, with at least 32% opacity for readability.
 - Apply shared theme surfaces to Projects, Library, Plugins, Settings, and the Images composer.
+- Adjustable page opacity for Settings, Profile, Projects, and the native Upgrade page.
+- Adjustable dialog/project chooser opacity, including Create project dialogs.
 - On-demand compatibility checks for theme layers and current-page styling targets.
 - Live editor preview, per-theme saved settings, and reset to package appearance.
 - Restore the official look and optionally keep themes applied across launches.
@@ -74,6 +77,8 @@ including imported themes; **Reset to package** restores the package appearance.
 | Composer / input box color and opacity | 0–100% opacity | Sets the input surface separately from message boxes. |
 | Your message darkness | 0–100% | Adds a dark background behind your messages. |
 | AI reply darkness | 0–100% | Adds a dark background behind assistant replies. |
+| Page background opacity | 0�100% | Controls dark tint behind Settings, Profile, Projects, and the native Upgrade page. |
+| Dialog / project chooser opacity | 0�100% | Controls dialog and project chooser surfaces while preserving nested controls. |
 | Thinking / activity darkness | 0–100% | Adds dark backgrounds behind working timers and thinking text. |
 
 For bright images, start with 60–80% message darkness. Enabled darkness uses
@@ -214,7 +219,7 @@ belong to their respective owners.
 Run `npm test` for the automated suite. Additional local checks are available
 in `audit/integration.mjs` and `audit/executable-smoke.mjs`.
 
-Validation on 2 October 2026: 170 automated tests and the executable smoke
+Validation on 2 October 2026: 171 automated tests and the executable smoke
 check pass. The taskbar identity repair was confirmed visually on the running
 Windows app. Historical audit reports describe their own validation snapshots;
 their test counts are not the current suite total. Projects, Library, Plugins,
@@ -228,3 +233,4 @@ Windows rendering has been checked against a running Codex instance. macOS
 paths exist but have not received equivalent live validation. Theme selectors
 can break after Codex updates. Automated tests do not prove complete platform
 compatibility or legal clearance. The software is provided without warranty.
+

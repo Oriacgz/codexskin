@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { detectImageMedia } from './image.js';
 import { buildZip } from './zip-write.js';
 
-const DEFAULTS = { textColorsEnabled: false, primaryTextColor: '#f4f6f8', secondaryTextColor: '#a1a8b0', brightness: 100, accent: '#b7f0ce', sidebarColor: '#191e22', sidebarOpacity: 80, sidebarDarkness: 0, chatColor: '#191e22', chatOpacity: 80, userMessageDarkness: 0, assistantMessageDarkness: 0, activityDarkness: 0 };
+const DEFAULTS = { textColorsEnabled: false, primaryTextColor: '#f4f6f8', secondaryTextColor: '#a1a8b0', brightness: 100, accent: '#b7f0ce', sidebarColor: '#191e22', sidebarOpacity: 80, sidebarDarkness: 0, chatColor: '#191e22', chatOpacity: 80, userMessageDarkness: 0, assistantMessageDarkness: 0, activityDarkness: 0, pageOpacity: 32, dialogOpacity: 65 };
 // Composite the dark layer into one surface so navigation is not tinted twice.
 export function sidebarSurface(settings) {
   const darkness = settings.sidebarDarkness / 100;
@@ -54,7 +54,7 @@ export function defaultSettings(theme, css = '') {
 export function customizePayload(payload, state) {
   const input = state.themeOverrides?.[payload.theme.id];
   const settings = input ? validateSettings(input) : null;
-  const revision = createHash('sha256').update('surfaces-v14:' + JSON.stringify(settings)).digest('hex').slice(0, 16);
+  const revision = createHash('sha256').update('surfaces-v21:' + JSON.stringify(settings)).digest('hex').slice(0, 16);
   return { ...payload, theme: { ...payload.theme, customization: settings, customizationRevision: revision, colors: settings ? { ...payload.theme.colors, accent: settings.accent } : payload.theme.colors } };
 }
 export function createCustomTheme(input) {

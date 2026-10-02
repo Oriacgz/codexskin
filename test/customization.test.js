@@ -119,7 +119,8 @@ test('theme covers full-page shells and uses a single rounded composer surface',
  const css=JSON.parse(buildApplyExpression({...payload.theme,dataUrl:'data:image/png;base64,test'},null).match(/const STYLE_CSS = (.+);/)[1]);
  assert.ok(css.includes('[data-app-shell-main-surface="default"] { background: transparent !important; }'));
  assert.ok(css.includes('[class*="_FullHeightPageSurfaceLayout_"] { background: transparent !important; }'));
- assert.ok(css.includes('[data-app-shell-page-header] { background: rgba(16,24,32,1) !important; }'));
+ assert.ok(css.includes('[data-app-shell-page-header] { background: rgba(16,19,22,0.32) !important; }'));
+ assert.ok(css.includes('[data-app-shell-main-titlebar], html[data-codexskin="active"] [data-app-shell-page-header] [data-app-shell-page-header] { background: transparent !important; }'));
  assert.ok(css.includes('[class*="_ComposerLayoutBody_"] { background: rgba(16,24,32,0.3) !important;'));
  assert.ok(css.includes(':has([class*="_ComposerLayoutBody_"]) { background: transparent !important; backdrop-filter: none !important; }'));
  assert.ok(!css.includes('.bg-surface-card { background: transparent'));
@@ -147,4 +148,19 @@ test('text colors are opt-in, validated and override automatic darkness colors',
  assert.ok(css.includes('::placeholder { color: #8899aa'));
  assert.ok(css.includes('[data-placeholder])::before'));
  assert.ok(!css.includes('pre *'));
+});
+
+test('page and dialog opacity preserve old settings and validate bounds', () => {
+ const old = validateSettings({brightness:100});
+ assert.equal(old.pageOpacity,32);
+ assert.equal(old.dialogOpacity,65);
+ for(const key of ['pageOpacity','dialogOpacity']) {
+  for(const value of [-1,101,NaN,'50']) assert.throws(()=>validateSettings({[key]:value}));
+  assert.equal(validateSettings({[key]:0})[key],0);
+  assert.equal(validateSettings({[key]:100})[key],100);
+ }
+ const theme={...pkg.theme,customization:validateSettings({pageOpacity:20,dialogOpacity:75}),dataUrl:'data:image/png;base64,test'};
+ const css=JSON.parse(buildApplyExpression(theme,null).match(/const STYLE_CSS = (.+);/)[1]);
+ assert.ok(css.includes('main[class~="h-full"][class~="bg-surface"] { background: rgba(16,19,22,0.2)'));
+ assert.ok(css.includes(':is([role="dialog"],dialog) { background: rgba(16,19,22,0.75)'));
 });
