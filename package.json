@@ -1,0 +1,23 @@
+{
+  "name": "codexskin",
+  "version": "0.7.1",
+  "description": "Dream skins for the Codex desktop app - runtime CSS injection over loopback CDP, no app files touched",
+  "type": "module",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "codexskin": "bin/codexskin.mjs"
+  },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "ui": "node bin/codexskin-ui.mjs",
+    "build:exe": "node tools/build-exe.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "postject": "^1.0.0-alpha.6"
+  }
+}

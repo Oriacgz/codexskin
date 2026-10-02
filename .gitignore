@@ -1,0 +1,71 @@
+# Dependencies
+node_modules/
+
+# Production and build outputs
+build/
+dist/
+out/
+zips/
+
+# Temporary and cache files
+tmp/
+tmp-*/
+temp/
+*.tmp
+*.temp
+.cache/
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment and local configs
+.env
+.env.*
+!.env.example
+*.local
+
+# Project-specific artifacts
+audit/preview-data/
+audit/*.png
+audit/*.jpg
+audit/*.jpeg
+audit/*-results.json
+audit/results.json
+.ui-profile/
+codex-profile/
+ui-runtime.json
+*.exe
+*.exe.old
+*.exe.bak
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Thumbs.db:encryptable
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# Editor and IDE configurations
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

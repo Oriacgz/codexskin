@@ -1,0 +1,33 @@
+import http from 'node:http';
+import { SAMPLE_THEMES, buildSampleThemeZip } from '../src/core/sample-themes.js';
+import { importThemePackage } from '../src/core/package.js';
+import { buildApplyExpression, buildVerifyExpression, buildRestoreExpression } from '../src/core/payload.js';
+const pkg=importThemePackage(buildSampleThemeZip(SAMPLE_THEMES[0]));
+const theme={...pkg.theme,dataUrl:'data:image/png;base64,'+pkg.image.bytes.toString('base64')};
+const apply=buildApplyExpression(theme,pkg.css);
+const off=buildApplyExpression({...theme,art:{...theme.art,taskMode:'off'}},pkg.css);
+const verify=buildVerifyExpression(theme.id),restore=buildRestoreExpression();
+const script=`(async()=>{
+window.location.hash='home';
+await ${apply};
+const initial=${verify};
+const position=getComputedStyle(document.getElementById('codexskin-layer')).backgroundPosition;
+const rootVariable=getComputedStyle(document.documentElement).getPropertyValue('--ds-theme-surface-opacity').trim();
+window.location.hash='thread';
+const thread=${verify};
+const mode=document.documentElement.getAttribute('data-codexskin-mode');
+await ${off};
+const intentionallyOff=${verify};
+const offOpacity=getComputedStyle(document.getElementById('codexskin-layer')).opacity;
+document.getElementById('codexskin-layer').style.backgroundImage='none';
+const missingImage=${verify};
+const restored=${restore};
+document.getElementById('result').textContent=JSON.stringify({initial:initial.ok,position,rootVariable,thread:thread.ok,mode,intentionallyOff:intentionallyOff.ok,offOpacity,missingImage:missingImage.ok,removed:restored.removed});
+})().catch(error=>document.getElementById('result').textContent=error.stack);`;
+const server=http.createServer((req,res)=>{
+  res.setHeader('content-type','text/html');
+  res.end('<!doctype html><html><head><title>Renderer regression proof</title></head><body><h1>Renderer regression proof</h1><pre id="result">Running…</pre><script>'+script+'</script></body></html>');
+});
+await new Promise(r=>server.listen(0,'127.0.0.1',r));
+console.log(`http://127.0.0.1:${server.address().port}/`);
+process.on('SIGINT',()=>{server.closeAllConnections();server.close();});
