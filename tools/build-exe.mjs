@@ -84,6 +84,7 @@ async function main() {
     await fs.copyFile(path.join(root, name), path.join(distDir, name));
   }
   await fs.cp(path.join(root, 'third-party-licenses'), path.join(distDir, 'third-party-licenses'), { recursive: true });
+  await fs.copyFile(path.join(root,'assets','codexskin.ico'),path.join(distDir,'codexskin.ico'));
 
   const stat = await fs.stat(exePath);
   console.log(`\nBuilt ${exePath} (${(stat.size / 1024 / 1024).toFixed(1)} MiB)`);

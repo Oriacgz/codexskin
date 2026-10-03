@@ -579,6 +579,7 @@ export function buildStartupShortcutCmd(targetExe, { name = "codexskin", args = 
     `$lnk = $sh.CreateShortcut('${esc(lnkPath)}')`,
     `$lnk.TargetPath = '${esc(targetExe)}'`,
     `$lnk.Arguments = '${esc(argsLine)}'`,
+    `$lnk.IconLocation = '${esc(path.join(dataDir(), 'tray', TRAY_ICON_NAME))},0'`,
     "$lnk.Description = 'codexskin desktop app (tray + skinned Codex)'",
     "$lnk.Save()",
   ].join("; ");
