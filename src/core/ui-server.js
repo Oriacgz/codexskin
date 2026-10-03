@@ -468,8 +468,8 @@ export function createUiServer({ openWindow = async () => {} } = {}) {
       }
 
       if (route === "quit" && req.method === "POST") {
-        quitRequested = true;
-        trayQuitRequested = true;
+        // Acknowledge quit before the desktop loop can close the server.
+        res.once('finish', () => { quitRequested = true; trayQuitRequested = true; });
         json(res, 200, { ok: true });
         return;
       }

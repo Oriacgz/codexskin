@@ -6,11 +6,10 @@ const DEFAULTS = { textColorsEnabled: false, primaryTextColor: '#f4f6f8', second
 // Composite the dark layer into one surface so navigation is not tinted twice.
 export function sidebarSurface(settings) {
   const darkness = settings.sidebarDarkness / 100;
-  const baseAlpha = settings.sidebarOpacity / 100 * (1 - darkness);
-  const alpha = darkness + baseAlpha;
+  const alpha = settings.sidebarOpacity / 100;
   const channels = [1, 3, 5].map((offset, index) => {
     const base = parseInt(settings.sidebarColor.slice(offset, offset + 2), 16);
-    return alpha === 0 ? base : Math.round((base * baseAlpha + [16, 19, 22][index] * darkness) / alpha);
+    return Math.round(base * (1 - darkness) + [16, 19, 22][index] * darkness);
   });
   return `rgba(${channels.join(',')},${alpha})`;
 }
@@ -54,7 +53,7 @@ export function defaultSettings(theme, css = '') {
 export function customizePayload(payload, state) {
   const input = state.themeOverrides?.[payload.theme.id];
   const settings = input ? validateSettings(input) : null;
-  const revision = createHash('sha256').update('surfaces-v21:' + JSON.stringify(settings)).digest('hex').slice(0, 16);
+  const revision = createHash('sha256').update('surfaces-v22:' + JSON.stringify(settings)).digest('hex').slice(0, 16);
   return { ...payload, theme: { ...payload.theme, customization: settings, customizationRevision: revision, colors: settings ? { ...payload.theme.colors, accent: settings.accent } : payload.theme.colors } };
 }
 export function createCustomTheme(input) {

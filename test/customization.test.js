@@ -91,13 +91,14 @@ test('sidebar darkness preserves old surfaces and darkens light themes independe
  assert.equal(validateSettings(legacy).sidebarDarkness,0);
  assert.equal(sidebarSurface({...settings,sidebarDarkness:0}),'rgba(16,24,32,1)');
  const light={...settings,sidebarColor:'#ffffff',sidebarOpacity:0,sidebarDarkness:80};
- assert.equal(sidebarSurface(light),'rgba(16,19,22,0.8)');
+ assert.equal(sidebarSurface(light),'rgba(64,66,69,0)');
  assert.equal(sidebarSurface({...light,sidebarOpacity:100,sidebarDarkness:100}),'rgba(16,19,22,1)');
+ assert.equal(sidebarSurface({...light,sidebarOpacity:25,sidebarDarkness:100}),'rgba(16,19,22,0.25)');
  for(const value of [-1,101,'80'])assert.throws(()=>validateSettings({...light,sidebarDarkness:value}));
  const payload=customizePayload({theme:pkg.theme,dataUrl:'data:image/png;base64,test'},{themeOverrides:{[pkg.theme.id]:light}});
  const expression=buildApplyExpression({...payload.theme,dataUrl:payload.dataUrl},null);
  const css=JSON.parse(expression.match(/const STYLE_CSS = (.+);/)[1]);
- assert.ok(css.includes('background: rgba(16,19,22,0.8) !important'));
+ assert.ok(css.includes('background: rgba(64,66,69,0) !important'));
  assert.ok(css.includes('--color-text-primary: #f4f6f8'));
  assert.equal(payload.theme.customization.chatOpacity,settings.chatOpacity);
 });

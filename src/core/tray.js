@@ -19,6 +19,7 @@
 
 import { execFile } from "node:child_process";
 import {taskbarPropertySource} from "./windows-taskbar.js";
+import {logoIcoBase64} from './brand-assets.js';
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -164,6 +165,27 @@ Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; pu
 $script:windowIcons = @{}
 function Update-WindowIcons {
   $live = @{}
+  # Brand only the control window; keep the installed ChatGPT/Codex identity.
+  foreach ($name in @('chrome','msedge')) {
+    foreach ($app in [Diagnostics.Process]::GetProcessesByName($name)) {
+      try {
+        if ($app.MainWindowTitle -ne ('codexskin ' + [char]0x2014 + ' Your theme library')) { continue }
+        $handle = $app.MainWindowHandle
+        if ($handle -eq [IntPtr]::Zero) { continue }
+        $key = "$($app.Id):$handle"
+        $live[$key] = $true
+        if ($script:windowIcons.ContainsKey($key)) { continue }
+        $brandPath = Join-Path $PSScriptRoot '${TRAY_ICON_NAME}'
+        $image = [Drawing.Icon]::new($brandPath)
+        [CodexSkinTaskbar]::Set($handle,3,$brandPath)
+        [CodexSkinTaskbar]::Set($handle,4,'codexskin')
+        [CodexSkinTaskbar]::Set($handle,5,'codexskin.ControlWindow')
+        $oldBig = [CodexSkinWindowIcons]::SendMessage($handle,128,[IntPtr]1,$image.Handle)
+        $oldSmall = [CodexSkinWindowIcons]::SendMessage($handle,128,[IntPtr]0,$image.Handle)
+        $script:windowIcons[$key] = @{ Image=$image; Window=$handle; Big=$oldBig; Small=$oldSmall }
+      } catch { Log ("Control window icon failed: " + $_.Exception.Message) }
+    }
+  }
   foreach ($name in @('ChatGPT','Codex')) {
     foreach ($app in [Diagnostics.Process]::GetProcessesByName($name)) {
       try {
@@ -456,7 +478,7 @@ export async function writeTrayAssets({ installDir } = {}) {
   const dir = installDir ?? path.join(dataDir(), "tray");
   await fs.mkdir(dir, { recursive: true });
 
-  const ico = buildIco(32, trayIconRgba(32));
+  const ico = Buffer.from(logoIcoBase64, 'base64');
   const iconPath = path.join(dir, TRAY_ICON_NAME);
   await fs.writeFile(iconPath, ico);
 

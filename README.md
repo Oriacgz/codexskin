@@ -22,9 +22,10 @@ profile, so you may need to sign in again in that profile.
 - Adjustable page opacity for Settings, Profile, Projects, and the native Upgrade page.
 - Adjustable dialog/project chooser opacity, including Create project dialogs.
 - On-demand compatibility checks for theme layers and current-page styling targets.
-- Live editor preview, per-theme saved settings, and reset to package appearance.
+- Fixed live preview beside independently scrolling editor controls, with automatic Chat / Pages preview switching, per-theme settings, and reset to package appearance.
 - Restore the official look and optionally keep themes applied across launches.
 - Windows tray, optional launch at login, and a desktop executable without a console window.
+- Official codexskin logo in the control window, taskbar, tray notifications, and executable. Icon assets are embedded for standalone use.
 - Restore the official ChatGPT taskbar icon and package identity while the tray is running.
 
 ## Start on Windows
@@ -73,7 +74,7 @@ including imported themes; **Reset to package** restores the package appearance.
 | Primary and secondary text colors | Hex colors | Enable custom colors for normal text and muted labels; disable to restore automatic text colors. |
 | Background brightness | 20–180% | Adjusts the image brightness. |
 | Sidebar color and opacity | 0–100% opacity | Sets the sidebar surface, from transparent to opaque. |
-| Sidebar darkness | 0–100% | Adds a dark tint while preserving the saved color and opacity. |
+| Sidebar darkness | 0–100% | Darkens the saved color while opacity independently controls transparency. |
 | Composer / input box color and opacity | 0–100% opacity | Sets the input surface separately from message boxes. |
 | Your message darkness | 0–100% | Adds a dark background behind your messages. |
 | AI reply darkness | 0–100% | Adds a dark background behind assistant replies. |

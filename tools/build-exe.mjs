@@ -78,6 +78,7 @@ async function main() {
 
   // Apply after resource injection so postject cannot rewrite the subsystem.
   if (isWin) await fs.writeFile(exePath, markWindowsGui(await fs.readFile(exePath)));
+  if (isWin) run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root,'tools','set-exe-icon.ps1'), '-Executable', exePath, '-Icon', path.join(root,'assets','codexskin.ico')]);
 
   for (const name of ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']) {
     await fs.copyFile(path.join(root, name), path.join(distDir, name));
