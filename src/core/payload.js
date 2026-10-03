@@ -111,6 +111,7 @@ html[data-codexskin="active"] [class*="app-shell"] { background: transparent !im
   out += 'html[data-codexskin="active"] [data-automation-card] > button:hover { background-color: rgba(16,19,22,.42) !important; }';
   if (theme.customization) {
     const c = theme.customization;
+    out += '#codexskin-layer { background-size: ' + (c.imageMode === 'fit' ? 'contain' : 'cover') + ' !important; background-repeat: no-repeat; background-position: ' + c.imageX + '% ' + c.imageY + '% !important; transform: scale(' + c.imageZoom/100 + '); transform-origin: ' + c.imageX + '% ' + c.imageY + '%; }';
     const rgba = (hex, opacity) => 'rgba(' + [1,3,5].map(i => parseInt(hex.slice(i,i+2),16)).join(',') + ',' + opacity / 100 + ')';
     // Tint one message body, never its nested markdown, code, or tool cards.
     const messageSurfaces = [

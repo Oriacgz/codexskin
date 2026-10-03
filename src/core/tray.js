@@ -6,8 +6,6 @@
 // (named mutex), and a Startup-folder shortcut for login autostart.
 // codexskin mirrors that pattern - no Electron, no WebView shell, no admin:
 //
-//   buildIco()                - dependency-free 32bpp DIB ICO writer.
-//   trayIconRgba()            - the codexskin glyph as RGBA pixels.
 //   writeTrayAssets()         - materialize icon + generated tray host on disk.
 //   spawnTray()               - start the detached PowerShell tray process.
 //   stopOrphanTrays()         - kill tray hosts left over from crashed runs.
@@ -31,113 +29,6 @@ const run = promisify(execFile);
 export const TRAY_MUTEX = "Local\\codexskin.tray";
 export const TRAY_PS1_NAME = "codexskin-tray.ps1";
 export const TRAY_ICON_NAME = "codexskin-tray.ico";
-
-/**
- * Write a Windows ICO with ONE classic 32-bpp DIB frame (no PNG frame).
- * PNG-framed icons trip up GDI+'s System.Drawing.Icon on some sizes; a plain
- * BI_RGB 32bpp frame loads everywhere. Bottom-up rows, BGRA + AND mask.
- */
-export function buildIco(size, rgba) {
-  if (!Number.isInteger(size) || size < 1 || size > 256) throw new Error("ico: size must be 1..256");
-  if (!Buffer.isBuffer(rgba)) throw new Error("ico: rgba buffer required");
-  if (rgba.length !== size * size * 4) throw new Error("ico: buffer size mismatch");
-
-  const xorStride = size * 4;
-  const andStride = Math.ceil(size / 32) * 4; // 1bpp mask rows, dword-aligned
-  const xorSize = xorStride * size;
-  const andSize = andStride * size;
-
-  const dib = Buffer.alloc(40 + xorSize + andSize);
-  // BITMAPINFOHEADER
-  dib.writeUInt32LE(40, 0);        // biSize
-  dib.writeInt32LE(size, 4);       // biWidth
-  dib.writeInt32LE(size * 2, 8);   // biHeight (XOR + AND masks, bottom-up)
-  dib.writeUInt16LE(1, 12);        // biPlanes
-  dib.writeUInt16LE(32, 14);       // biBitCount
-  dib.writeUInt32LE(0, 16);        // biCompression = BI_RGB
-  dib.writeUInt32LE(xorSize, 20);  // biSizeImage (XOR mask)
-  // XOR mask: rows bottom-up, BGRA.
-  for (let y = 0; y < size; y += 1) {
-    const srcRow = (size - 1 - y) * size * 4;
-    const dstRow = 40 + y * xorStride;
-    for (let x = 0; x < size; x += 1) {
-      const s = srcRow + x * 4;
-      const d = dstRow + x * 4;
-      dib[d] = rgba[s + 2];     // B
-      dib[d + 1] = rgba[s + 1]; // G
-      dib[d + 2] = rgba[s];     // R
-      dib[d + 3] = rgba[s + 3]; // A
-    }
-  }
-  // AND mask stays all-zero: alpha channel carries transparency.
-
-  const header = Buffer.alloc(6);
-  header.writeUInt16LE(0, 0); // reserved
-  header.writeUInt16LE(1, 2); // type: icon
-  header.writeUInt16LE(1, 4); // count
-
-  const entry = Buffer.alloc(16);
-  entry[0] = size === 256 ? 0 : size;
-  entry[1] = size === 256 ? 0 : size;
-  entry[2] = 0; // palette colors
-  entry[3] = 0; // reserved
-  entry.writeUInt16LE(1, 4);           // planes
-  entry.writeUInt16LE(32, 6);          // bpp
-  entry.writeUInt32LE(dib.length, 8);  // bytes in resource
-  entry.writeUInt32LE(22, 12);         // image offset (6 header + 16 entry)
-
-  return Buffer.concat([header, entry, dib]);
-}
-
-/**
- * The codexskin tray glyph: 32x32 RGBA. Teal->violet gradient rounded square
- * with a white crescent, echoing the UI header logo.
- */
-export function trayIconRgba(size = 32) {
-  const rgba = Buffer.alloc(size * size * 4, 0);
-  const r = size * 0.42;
-  const cx = size / 2;
-  const cy = size / 2;
-  const inner = cx - r; // corner rounding inset
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const i = (y * size + x) * 4;
-      // Rounded-square mask: box distance with rounded corners.
-      const dx = Math.abs(x + 0.5 - cx);
-      const dy = Math.abs(y + 0.5 - cy);
-      const box = Math.max(dx, dy);
-      const corner = Math.hypot(Math.max(0, dx - inner), Math.max(0, dy - inner));
-      if (Math.min(box, corner + inner) > r) continue;
-      // Diagonal gradient #5fc6a5 (accent) -> #8b5cf6 (accent2).
-      const t = (x / size + y / size) / 2;
-      rgba[i] = Math.round(0x5f + (0x8b - 0x5f) * t);
-      rgba[i + 1] = Math.round(0xc6 + (0x5c - 0xc6) * t);
-      rgba[i + 2] = Math.round(0xa5 + (0xf6 - 0xa5) * t);
-      rgba[i + 3] = 255;
-    }
-  }
-  // White crescent: full disc minus an offset disc.
-  const moonCx = cx - size * 0.06;
-  const moonCy = cy - size * 0.04;
-  const moonR = size * 0.24;
-  const cutCx = moonCx + moonR * 0.75;
-  const cutCy = moonCy + moonR * 0.62;
-  const cutR = moonR * 0.88;
-  for (let y = 0; y < size; y += 1) {
-    for (let x = 0; x < size; x += 1) {
-      const i = (y * size + x) * 4;
-      if (rgba[i + 3] === 0) continue;
-      const inMoon = Math.hypot(x + 0.5 - moonCx, y + 0.5 - moonCy) <= moonR;
-      const inCut = Math.hypot(x + 0.5 - cutCx, y + 0.5 - cutCy) <= cutR;
-      if (inMoon && !inCut) {
-        rgba[i] = 255;
-        rgba[i + 1] = 255;
-        rgba[i + 2] = 255;
-      }
-    }
-  }
-  return rgba;
-}
 
 /**
  * The PowerShell tray host: a WinForms NotifyIcon app (single instance via a
@@ -227,7 +118,17 @@ if (-not $acquired) { exit 0 }
 $notify = $null
 $icon = $null
 function Log([string]$msg) {
-  if ($LogFile) { try { Add-Content -LiteralPath $LogFile -Value ("[{0}] {1}" -f (Get-Date -Format o), $msg) } catch {} }
+  if ($LogFile) { try {
+    if ($msg.Length -gt 2000) { $msg = $msg.Substring(0,2000) + '...' }
+    $line = "[{0}] {1}" -f (Get-Date -Format o), $msg
+    $previous = $LogFile + '.1'
+    $old = Get-Item -LiteralPath $previous -ErrorAction SilentlyContinue
+    if ($old -and $old.Length -gt 1048576) { Remove-Item -LiteralPath $previous -Force }
+    $current = Get-Item -LiteralPath $LogFile -ErrorAction SilentlyContinue
+    if ($current -and $current.Length -gt 1048576) { Remove-Item -LiteralPath $LogFile -Force }
+    elseif ($current -and ($current.Length + [Text.Encoding]::UTF8.GetByteCount($line) + 5) -gt 1048576) { Move-Item -LiteralPath $LogFile -Destination $previous -Force }
+    Add-Content -LiteralPath $LogFile -Value $line -Encoding UTF8
+  } catch {} }
 }
 function Invoke-Api([string]$route, [string]$Body) {
   try {
@@ -263,6 +164,29 @@ try {
 
   $menu = [System.Windows.Forms.ContextMenuStrip]::new()
   $notify.ContextMenuStrip = $menu
+  $favorites = [System.Windows.Forms.ToolStripMenuItem]::new('Favorite themes')
+  [void]$menu.Items.Add($favorites)
+  $menu.add_Opening({
+    try {
+      $s = Invoke-RestMethod -Uri ("http://127.0.0.1:{0}/t/{1}/state" -f $Port, $Token) -TimeoutSec 4
+      $favorites.DropDownItems.Clear()
+      foreach ($theme in $s.themes) {
+        if (-not $theme.favorite) { continue }
+        $item = [System.Windows.Forms.ToolStripMenuItem]::new([string]$theme.name)
+        $item.Tag = [string]$theme.id
+        $item.Checked = [bool]$theme.active
+        $item.Enabled = -not [bool]$theme.broken
+        $item.add_Click({
+          $route = 'apply/' + [Uri]::EscapeDataString([string]$this.Tag)
+          $r = Invoke-Api $route ''
+          if ($null -ne $r -and $r.ok) { Show-Balloon 'Favorite theme applied.' }
+          else { $err = if ($null -ne $r) { $r.error } else { 'UI server unreachable' }; Show-Balloon ("Apply failed: {0}" -f $err) 'Warning' }
+        })
+        [void]$favorites.DropDownItems.Add($item)
+      }
+      if ($favorites.DropDownItems.Count -eq 0) { $empty = $favorites.DropDownItems.Add('Add favorites in the control window'); $empty.Enabled = $false }
+    } catch { $favorites.DropDownItems.Clear(); $empty = $favorites.DropDownItems.Add('Connection unavailable'); $empty.Enabled = $false }
+  })
 
   $status = $menu.Items.Add('codexskin')
   $status.Enabled = $false
@@ -570,6 +494,7 @@ function defaultStartupDir() {
  * `args` are extra command-line arguments (e.g. node + script in dev mode).
  */
 export function buildStartupShortcutCmd(targetExe, { name = "codexskin", args = [] } = {}) {
+  if (typeof name !== 'string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(name)) throw new Error('Invalid startup shortcut name');
   const startupDir = defaultStartupDir();
   const lnkPath = path.join(startupDir, `${name}.lnk`);
   const esc = (s) => String(s).replace(/'/g, "''");

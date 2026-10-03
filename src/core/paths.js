@@ -39,12 +39,6 @@ export function trustedKeysPath() {
 
 // --- Codex app discovery -------------------------------------------------
 
-const CODEX_BUNDLE_IDS = new Set([
-  "com.openai.codex",
-  "com.openai.chat",
-  "chatgpt",
-]);
-
 async function exists(p) {
   try {
     await fs.stat(p);
@@ -178,5 +172,3 @@ export async function codexExecutable(appInfo) {
     return null;
   }
 }
-
-export { CODEX_BUNDLE_IDS };

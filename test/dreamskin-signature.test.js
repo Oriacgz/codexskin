@@ -184,12 +184,13 @@ test("envelope self-check inside signPackage matches verification", async () => 
   verifyEnvelopeBytes(parsed, manifest, createPublicKey(kp.publicKeyPem));
 });
 
-test("simple packages are unaffected by signature options", async () => {
+test("signature-required imports reject unsigned simple packages", async () => {
   await withTrustedKeys(async ({ keys }) => {
-    const pkg = importThemePackage(buildSampleThemeZip(SAMPLE_THEMES[0]), {
+    assert.throws(() => importThemePackage(buildSampleThemeZip(SAMPLE_THEMES[0]), {
       trustedKeys: keys,
       requireSignature: true,
-    });
+    }), /simple packages are unsigned/);
+    const pkg = importThemePackage(buildSampleThemeZip(SAMPLE_THEMES[0]), { trustedKeys: keys });
     assert.equal(pkg.meta.source, "codexskin-simple");
     assert.equal(pkg.meta.signature, undefined);
   });

@@ -19,6 +19,7 @@ import { promisify } from "node:util";
 import { listTargets, isCodexTarget } from "./cdp.js";
 import { dataDir, IS_MAC, IS_WIN } from "./paths.js";
 import { loadState, updateState } from "./state.js";
+import {assertDebugPortSafe,validDebugPort} from './debug-security.js';
 
 const run = promisify(execFile);
 
@@ -73,6 +74,8 @@ export async function isCodexReachable(port) {
 export async function launchCodex(appInfo, exePath, port, { timeoutMs = 30_000 } = {}) {
   if (process.env.CODEXSKIN_NO_LAUNCH === '1') throw new Error('auto-launch is disabled in this environment');
   if (!exePath) throw new Error("Codex executable not found (run `codexskin doctor`)");
+  if (!validDebugPort(port)) throw new Error('Invalid debugger port');
+  await assertDebugPortSafe(port,{requireListener:false,fresh:true});
 
   // Reject double launches: if any Codex instance is already up (without our
   // port), Electron will just focus the existing one and our flags are lost.
@@ -92,6 +95,7 @@ export async function launchCodex(appInfo, exePath, port, { timeoutMs = 30_000 }
   await fs.mkdir(profileDir(), { recursive: true });
 
   const args = [
+    '--remote-debugging-address=127.0.0.1',
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profileDir()}`,
     "--no-first-run",

@@ -10,7 +10,7 @@ import { buildApplyExpression } from '../src/core/payload.js';
 const home=await fs.mkdtemp(path.join(os.tmpdir(),'codexskin-perf-'));
 const theme={schemaVersion:1,id:'perf-theme',name:'Performance',image:'background.png'};
 const image=Buffer.alloc(8*1024*1024,1);
-Buffer.from([137,80,78,71,13,10,26,10]).copy(image);
+Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64').copy(image);
 const store=createThemeStore(home);
 const realRead=fs.readFile;
 try {

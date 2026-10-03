@@ -23,6 +23,7 @@ import {
   buildVerifyExpression,
 } from "./payload.js";
 import { loadState } from "./state.js";
+import {assertDebugPortSafe} from './debug-security.js';
 
 export const WATCH_DEFAULTS = Object.freeze({
   intervalMs: 2_000,
@@ -270,6 +271,7 @@ export function createWatchDeps({ store, themeId, autoLaunch = true, restartRunn
       if (!app) throw new Error("Codex app not found (run `codexskin doctor`)");
       const exe = await codexExecutable(app);
       const port = await resolvePort();
+      await assertDebugPortSafe(port,{requireListener:false,fresh:true});
       if (!(await closeCodex()).closed) throw new Error('could not close the running Codex');
       await new Promise((r) => setTimeout(r, 600));
       await launchCodex(app, exe, port);

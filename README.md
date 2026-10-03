@@ -7,26 +7,18 @@ codexskin applies styles at runtime through a local debugging connection. It
 does not patch the official application's files. It uses a dedicated Codex
 profile, so you may need to sign in again in that profile.
 
+CLI archive inputs are bounded to 32 MiB before reading; signing and trusted-key files are bounded to 256 KiB. The [security audit](audit/SECURITY-AUDIT.md) records the latest fixes and verification limits.
+
 ## Features
 
-- Installed themes section with previews, current-theme indicator, and quick switching.
-- Import local `.zip` and `.codextheme` themes in supported simple and DreamSkin manifest formats.
-- Create a theme using a PNG, JPEG, or WebP image, up to 10 MiB. Image filenames provide an editable default name; progress and errors appear inside the editor.
-- Choose app-wide primary (normally white) and secondary (normally grey) text colors per theme.
-- Subtle dark surfaces behind automation suggestion cards improve readability.
-- Customize image brightness (20–180%), accent color, and sidebar/composer colors.
-- Set independent sidebar and composer opacity (0–100%), with translucent and opaque presets.
-- Adjust darkness independently for the sidebar, your messages, AI replies, and thinking/activity text.
-- Collapsed sidebar hover panels keep their tint and blur, with at least 32% opacity for readability.
-- Apply shared theme surfaces to Projects, Library, Plugins, Settings, and the Images composer.
-- Adjustable page opacity for Settings, Profile, Projects, and the native Upgrade page.
-- Adjustable dialog/project chooser opacity, including Create project dialogs.
-- On-demand compatibility checks for theme layers and current-page styling targets.
-- Fixed live preview beside independently scrolling editor controls, with automatic Chat / Pages preview switching, per-theme settings, and reset to package appearance.
-- Restore the official look and optionally keep themes applied across launches.
-- Windows tray, optional launch at login, and a desktop executable without a console window.
-- Official codexskin logo in the control window, taskbar, tray notifications, and executable. Icon assets are embedded for standalone use.
-- Restore the official ChatGPT taskbar icon and package identity while the tray is running.
+- **Theme collection:** import, create, duplicate, export, search, and favorite themes.
+- **Separate app pages:** Theme library, Installed themes, and Preferences.
+- **Live editor:** fixed previews, undo/redo, Fit/Fill positioning, zoom, and brightness.
+- **Colors and readability:** accent and text colors, local palette suggestions, and contrast estimates.
+- **Translucent surfaces:** independent opacity and darkness for sidebars, messages, pages, and dialogs.
+- **Quick switching:** favorite themes in the Windows tray and a local day/night schedule.
+- **Backup and support:** reviewed collection restores, recovery backups, and privacy-conscious diagnostics.
+- **Desktop integration:** optional launch at login, compatibility checks, and on-demand release checks.
 
 ## Start on Windows
 
@@ -73,6 +65,8 @@ including imported themes; **Reset to package** restores the package appearance.
 | --- | --- | --- |
 | Primary and secondary text colors | Hex colors | Enable custom colors for normal text and muted labels; disable to restore automatic text colors. |
 | Background brightness | 20–180% | Adjusts the image brightness. |
+| Image mode | Fit / Fill | Fit shows the whole image at 100% zoom; Fill crops to the window. |
+| Image zoom and position | 100–250% zoom; 0–100% position | Sets the zoom and horizontal/vertical focal point. |
 | Sidebar color and opacity | 0–100% opacity | Sets the sidebar surface, from transparent to opaque. |
 | Sidebar darkness | 0–100% | Darkens the saved color while opacity independently controls transparency. |
 | Composer / input box color and opacity | 0–100% opacity | Sets the input surface separately from message boxes. |
@@ -96,6 +90,43 @@ while cards and code blocks retain their own backgrounds for readability.
 
 The preview is approximate: window proportions and the Codex version can
 affect the result. Check the applied theme in Codex before finalizing settings.
+
+**Undo / Redo** tracks settings for the current editing session. A slider drag
+counts as one step. Ctrl+Z and Ctrl+Y work outside normal text-entry fields;
+typing in a name or hex field keeps the browser's text undo. Reset buttons
+change the preview first; click **Save changes** to apply them.
+
+**Duplicate** asks for a name and creates an independent copy with the source's
+saved customization. **Export** downloads saved settings, the image, and any
+validated theme CSS as a `.codextheme` package. Unsaved editor changes are not
+exported. Exported settings become the package defaults on import.
+
+Contrast warnings estimate text readability from sampled background colors,
+brightness, and surface opacity. They do not certify accessibility across every
+app page and never block saving.
+
+**Suggest colors from image** samples the background locally. Click an accent,
+primary, or secondary suggestion to apply only that color. Suggestions do not
+change settings automatically; palette choices support Undo.
+
+Under **App preferences**, **Download backup** includes installed themes and
+saved customization. **Restore backup** validates all packages and shows which
+themes will be added or kept. Matching IDs keep the existing theme. Selected-theme
+restoration is optional and can apply when Codex connects. OS startup registration
+and restart permissions are not transferred. Backups support up to 31 themes and
+32 MiB, with a shared 64 MiB expansion cap for nested packages; export larger collections as individual themes. Broken themes must be
+repaired or removed before creating a backup.
+
+A pre-restore backup is saved under `backups/pre-restore-latest.zip` in the data
+folder. **Download recovery backup** makes it available after a successful merge.
+Recovery uses the same merge behavior; it does not delete newly added themes.
+Interrupted batch merges roll back incomplete additions on the next store access.
+
+**View diagnostics** shows connection status, compatibility warning counts, and
+recent error categories. Review the report before copying or downloading it.
+Only bounded log tails are examined; raw log messages and personal data are not
+included in the report.
+Diagnostics also show the OS-observed debugger binding status.
 
 ## Run from source
 
@@ -146,6 +177,10 @@ node bin/codexskin.mjs watch
 ```
 
 Use the command help for restart, launch, signature, and service options.
+`--require-signature` rejects unsigned packages, including the simple format.
+Signed official packages require a matching trusted Ed25519 public key.
+
+Security review and validation details: [October 2026 audit](audit/SECURITY-AUDIT.md).
 
 ## Theme packages
 
@@ -181,6 +216,22 @@ On Windows, themes and preferences are stored under `%LOCALAPPDATA%\codexskin`.
 The control server binds to loopback with a random token in its URL. The Codex
 debugging connection is also local, but other local processes may access an
 exposed debugging port. Use this tool only on a machine you trust.
+New launches request `127.0.0.1` explicitly. Before opening a debugger connection,
+codexskin checks OS listeners and refuses wildcard, non-loopback, absent, or
+unverified bindings. Inspection uses PowerShell/.NET on Windows and `lsof` on
+macOS. Closing the helper closes its client connections; the app's debugging
+listener remains until Codex exits. The helper never closes Codex simply to
+remove that listener.
+
+Desktop watcher and tray logs rotate at 1 MiB, retaining one previous file each.
+Records are capped at 8 KiB; oversized legacy files are discarded on the next
+write. Separately installed legacy service logs need an OS retention policy.
+Image dimension checks inspect headers and do not replace browser decoding.
+
+The [security implementation plan](docs/SECURITY-IMPLEMENTATION-PLAN.md) records
+acceptance gates. [Windows signing](docs/WINDOWS-SIGNING.md) is available when a
+trusted certificate is configured; [macOS native validation](docs/MACOS-VALIDATION.md)
+remains a separate release gate.
 
 codexskin does not download themes or send telemetry. Imported images and
 packages are processed locally. This does not describe network activity of
@@ -220,12 +271,12 @@ belong to their respective owners.
 Run `npm test` for the automated suite. Additional local checks are available
 in `audit/integration.mjs` and `audit/executable-smoke.mjs`.
 
-Validation on 2 October 2026: 171 automated tests and the executable smoke
+Validation on 3 October 2026: 203 automated tests and the executable smoke
 check pass. The taskbar identity repair was confirmed visually on the running
 Windows app. Historical audit reports describe their own validation snapshots;
 their test counts are not the current suite total. Projects, Library, Plugins,
 Settings, and Images still need individual visual confirmation across supported
-Codex versions. See [the page-surface report](audit/PAGE-SURFACES.md).
+Codex versions. See [the security and maintenance audit](audit/SECURITY-AUDIT.md).
 
 The packaged executable is currently unsigned. Public releases should be
 signed after the final executable is built.

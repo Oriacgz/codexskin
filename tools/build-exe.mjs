@@ -27,6 +27,9 @@ const outputName = process.argv[2];
 if (outputName && !/^[a-zA-Z0-9-]+(?:\.exe)?$/.test(outputName)) throw new Error('Output must be an executable filename');
 const exeName = outputName ?? (isWin ? "codexskin-app.exe" : "codexskin-app");
 const exePath = path.join(distDir, exeName);
+const signingKeys=['CODEXSKIN_SIGN_THUMBPRINT','CODEXSKIN_TIMESTAMP_URL','CODEXSKIN_SIGNTOOL'];
+const signingRequested=signingKeys.some(key=>process.env[key]);
+if(signingRequested&&(!isWin||!process.env.CODEXSKIN_SIGN_THUMBPRINT||!process.env.CODEXSKIN_TIMESTAMP_URL))throw new Error('Signing requires Windows, CODEXSKIN_SIGN_THUMBPRINT and CODEXSKIN_TIMESTAMP_URL');
 
 function run(cmd, args, opts = {}) {
   console.log(`> ${cmd} ${args.join(" ")}`);
@@ -79,12 +82,18 @@ async function main() {
   // Apply after resource injection so postject cannot rewrite the subsystem.
   if (isWin) await fs.writeFile(exePath, markWindowsGui(await fs.readFile(exePath)));
   if (isWin) run('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(root,'tools','set-exe-icon.ps1'), '-Executable', exePath, '-Icon', path.join(root,'assets','codexskin.ico')]);
+  if(signingRequested)run('powershell.exe',['-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',path.join(root,'tools','sign-exe.ps1'),'-Executable',exePath,'-Thumbprint',process.env.CODEXSKIN_SIGN_THUMBPRINT,'-TimestampUrl',process.env.CODEXSKIN_TIMESTAMP_URL,...(process.env.CODEXSKIN_SIGNTOOL?['-SignTool',process.env.CODEXSKIN_SIGNTOOL]:[])]);
+  else console.log('Unsigned build: no signing certificate configured.');
 
   for (const name of ['LICENSE', 'README.md', 'THIRD_PARTY_NOTICES.md']) {
     await fs.copyFile(path.join(root, name), path.join(distDir, name));
   }
   await fs.cp(path.join(root, 'third-party-licenses'), path.join(distDir, 'third-party-licenses'), { recursive: true });
   await fs.copyFile(path.join(root,'assets','codexskin.ico'),path.join(distDir,'codexskin.ico'));
+  await fs.mkdir(path.join(distDir, 'audit'), { recursive: true });
+  await fs.copyFile(path.join(root, 'audit', 'SECURITY-AUDIT.md'), path.join(distDir, 'audit', 'SECURITY-AUDIT.md'));
+  await fs.mkdir(path.join(distDir, 'docs'), { recursive: true });
+  for(const name of ['SECURITY-IMPLEMENTATION-PLAN.md','WINDOWS-SIGNING.md','MACOS-VALIDATION.md','PHASE-3-AUTOMATION.md'])await fs.copyFile(path.join(root,'docs',name),path.join(distDir,'docs',name));
 
   const stat = await fs.stat(exePath);
   console.log(`\nBuilt ${exePath} (${(stat.size / 1024 / 1024).toFixed(1)} MiB)`);

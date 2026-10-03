@@ -16,7 +16,6 @@ import path from "node:path";
 import process from "node:process";
 import { createPublicKey } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { connectCdp } from "../src/core/cdp.js";
 import { createWatchDeps, runWatchLoop, runWatchSupervised, WATCH_ACTIONS } from "../src/core/watch.js";
 import {
   buildLaunchdPlist,
@@ -28,7 +27,6 @@ import {
   serviceStatus,
   windowsRegisterCommand,
   windowsUnregisterCommand,
-  WINDOWS_TASK_ID,
 } from "../src/core/service.js";
 import { codexExecutable, dataDir, discoverCodexApp, trustedKeysPath, IS_MAC, IS_WIN } from "../src/core/paths.js";
 import { isCodexReachable, launchCodex, resolvePort } from "../src/core/launch.js";
@@ -40,13 +38,9 @@ import {
   parseSignatureEnvelope,
   verifyEnvelopeBytes,
 } from "../src/core/trust.js";
-import { readZip } from "../src/core/zip.js";
+import { readZip, ZIP_LIMITS } from "../src/core/zip.js";
+import {readFileLimited} from '../src/core/read-file.js';
 import { buildZip } from "../src/core/zip-write.js";
-import {
-  buildApplyExpression,
-  buildRestoreExpression,
-  buildVerifyExpression,
-} from "../src/core/payload.js";
 import { createThemeStore } from "../src/core/store.js";
 import { loadState, updateState } from "../src/core/state.js";
 
@@ -211,7 +205,7 @@ async function cmdImport(rest) {
   const zipPath = positional[0];
   let zipBuffer;
   try {
-    zipBuffer = await fs.readFile(zipPath);
+    zipBuffer = await readFileLimited(zipPath,ZIP_LIMITS.maxArchiveBytes);
   } catch (error) {
     die(`cannot read ${zipPath}: ${error.message}`);
   }
@@ -561,13 +555,13 @@ async function cmdSignManifest(rest) {
 
   let privateKeyPem;
   try {
-    privateKeyPem = await fs.readFile(keyPath, "utf8");
+    privateKeyPem = await readFileLimited(keyPath,256*1024,"utf8");
   } catch (error) {
     die(`cannot read private key ${keyPath}: ${error.message}`);
   }
   let zipBuffer;
   try {
-    zipBuffer = await fs.readFile(zipPath);
+    zipBuffer = await readFileLimited(zipPath,ZIP_LIMITS.maxArchiveBytes);
   } catch (error) {
     die(`cannot read ${zipPath}: ${error.message}`);
   }

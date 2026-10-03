@@ -13,8 +13,8 @@ function makePng() {
 }
 
 function makeJpegish() {
-  // Minimal buffer that passes magic-byte JPEG detection (FFD8FF prefix).
-  return Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 0x11)]);
+  // Minimal JPEG SOF header with 64 x 36 dimensions (no full decoder involved).
+  return Buffer.from([255,216,255,192,0,11,8,0,36,0,64,1,1,17,0,255,217]);
 }
 
 function officialThemeJson(overrides = {}) {

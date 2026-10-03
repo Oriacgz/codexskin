@@ -31,7 +31,7 @@ const oldNoLaunch = process.env.CODEXSKIN_NO_LAUNCH;
 process.env.CODEXSKIN_HOME = home;
 process.env.CODEXSKIN_NO_LAUNCH = '1';
 const theme = { schemaVersion: 1, id: 'audit-theme', name: 'Audit', image: 'background.png', tagline: 'Preserve this' };
-const image = Buffer.from([137,80,78,71,13,10,26,10]);
+const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLttAAAAABJRU5ErkJggg==','base64');
 function zip(input = theme) {
   return buildZip(new Map([['theme.json', Buffer.from(JSON.stringify(input))], ['background.png', image]]));
 }

@@ -1,6 +1,6 @@
 {
   "name": "codexskin",
-  "version": "0.7.4",
+  "version": "0.9.1",
   "description": "Dream skins for the Codex desktop app - runtime CSS injection over loopback CDP, no app files touched",
   "type": "module",
   "license": "MIT",

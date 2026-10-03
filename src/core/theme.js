@@ -1,3 +1,4 @@
+import { validateSettings } from './customization.js';
 // codexskin theme schema (v1) - validated, fail-closed, always-normalized output.
 // Mirrors the DreamSkin simple package contract so existing .zip themes import.
 
@@ -67,6 +68,7 @@ export function normalizeTheme(input) {
   for (const key of COLOR_KEYS) colors[key] = color(t.colors?.[key], `colors.${key}`, null);
 
   return {
+    ...(t.settings ? { settings: validateSettings(t.settings) } : {}),
     schemaVersion: 1,
     id,
     name,

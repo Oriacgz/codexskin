@@ -1,25 +1,9 @@
+import { crc32 } from './crc32.js';
 // Dependency-free PNG encoder (truecolor, no compression tricks - zlib store mode).
 // Enough for generated sample/placeholder backgrounds and tests; not a general
 // image library. Also a tiny deterministic gradient generator.
 
 import { deflateSync } from "node:zlib";
-
-function crc32Table() {
-  const table = new Int32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c;
-  }
-  return table;
-}
-const CRC_TABLE = crc32Table();
-
-function crc32(buf) {
-  let c = -1;
-  for (let i = 0; i < buf.length; i += 1) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ -1) >>> 0;
-}
 
 function chunk(type, data) {
   const out = Buffer.alloc(12 + data.length);

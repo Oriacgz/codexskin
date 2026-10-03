@@ -13,7 +13,7 @@
 import { readZip, ZIP_LIMITS } from "./zip.js";
 import { normalizeTheme } from "./theme.js";
 import { validateSafeCss } from "./safe-css.js";
-import { detectImageMedia } from "./image.js";
+import { detectImageMedia,inspectImage } from "./image.js";
 import { importOfficialPackage } from "./dreamskin.js";
 
 export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
@@ -49,10 +49,11 @@ function decodeJson(bytes, label) {
  * Two formats are accepted, distinguished by the presence of manifest.json:
  *  - official DreamSkin.cc packages (see dreamskin.js)
  *  - codexskin simple packages (theme.json + image + optional theme.css)
- * `options` ({ trustedKeys, requireSignature }) applies to official packages.
+ * Signature-required imports reject formats without a verifiable signature.
  */
 export function importThemePackage(zipBuffer, options = {}) {
-  const files = readZip(zipBuffer);
+  const files = readZip(zipBuffer, { maxTotalBytes: options.maxExpandedBytes });
+  const expandedBytes = [...files.values()].reduce((sum, bytes) => sum + bytes.length, 0);
 
   // Allow one wrapper directory: if every entry shares the same top-level
   // segment, strip it. More than one distinct root fails.
@@ -74,8 +75,10 @@ export function importThemePackage(zipBuffer, options = {}) {
 
   // Official DreamSkin.cc package path (manifest-declared, sha256-verified).
   if (byRel.has("manifest.json")) {
-    return importOfficialPackage(byRel, options);
+    return { ...importOfficialPackage(byRel, options), expandedBytes };
   }
+
+  if (options.requireSignature) fail('signatures are required; simple packages are unsigned');
 
   const themeBytes = byRel.get("theme.json");
   if (!themeBytes) fail("missing theme.json");
@@ -89,6 +92,7 @@ export function importThemePackage(zipBuffer, options = {}) {
   const ext = theme.image.split(".").pop().toLowerCase();
   if (!media) fail(`${theme.image} is not a PNG/JPEG/WebP image (magic bytes)`);
   if (media !== IMAGE_EXT_TO_MEDIA.get(ext)) fail(`${theme.image} content does not match its extension`);
+  inspectImage(imageBytes);
   // Normalize the stored name so downstream code only ever sees one of three names.
   const canonicalImage = media === "image/jpeg" ? "background.jpg" : `background.${ext === "jpeg" ? "jpg" : ext}`;
 
@@ -109,5 +113,6 @@ export function importThemePackage(zipBuffer, options = {}) {
     css,
     meta: { source: "codexskin-simple" },
     limits: ZIP_LIMITS,
+    expandedBytes,
   };
 }

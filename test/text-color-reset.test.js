@@ -8,7 +8,7 @@ test('text color reset leaves other editor settings intact and waits for Save',(
  const handler=html.match(/\$\('resetTextColors'\)\.onclick=\(\)=>\{([\s\S]*?)\n  \};/)[1];
  const controls={textColorsEnabled:{checked:true},primaryTextColor:{value:'#ff0000'},secondaryTextColor:{value:'#00ff00'},brightness:{value:65},sidebarDarkness:{value:80}};
  let previews=0;
- vm.runInNewContext(handler,{$:id=>controls[id],editorDefaults:{defaults:{primaryTextColor:'#f4f6f8',secondaryTextColor:'#a1a8b0'}},updatePreview(){previews++;},toast(){}});
+ vm.runInNewContext(handler,{$:id=>controls[id],editorDefaults:{defaults:{primaryTextColor:'#f4f6f8',secondaryTextColor:'#a1a8b0'}},updatePreview(){previews++;},recordEdit(){},toast(){}});
  assert.equal(controls.textColorsEnabled.checked,false);
  assert.equal(controls.primaryTextColor.value,'#f4f6f8');
  assert.equal(controls.secondaryTextColor.value,'#a1a8b0');

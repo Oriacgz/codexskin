@@ -14,6 +14,8 @@ import {
   buildVerifyExpression,
 } from "./payload.js";
 import { loadState, updateState } from "./state.js";
+import {assertDebugPortSafe} from './debug-security.js';
+import {manualSchedulePause} from './schedule.js';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -29,7 +31,7 @@ function sleep(ms) {
  * This is what the reference desktop app does on Apply; without it a running
  * normal Codex can never be skinned.
  */
-export async function applyTheme(store, themeId, { autoLaunch = true, restartRunning = false, log = () => {} } = {}) {
+export async function applyTheme(store, themeId, { autoLaunch = true, restartRunning = false, scheduled = false, log = () => {} } = {}) {
   let restarted = false;
   const themes = await store.list();
   const record = themes.find((t) => t.id === themeId);
@@ -37,6 +39,7 @@ export async function applyTheme(store, themeId, { autoLaunch = true, restartRun
   if (record.broken) throw new Error(`theme "${themeId}" is broken; reinstall it (codexskin import)`);
 
   const port = await resolvePort();
+  await assertDebugPortSafe(port,{requireListener:false,fresh:true});
   if (!(await isCodexReachable(port))) {
     if (!autoLaunch || process.env.CODEXSKIN_NO_LAUNCH === "1") {
       // CODEXSKIN_NO_LAUNCH=1 is a test/CI kill-switch: never spawn the real
@@ -127,11 +130,12 @@ export async function applyTheme(store, themeId, { autoLaunch = true, restartRun
   const results = finalSnapshot.filter(target => skinnedIds.has(target.id));
   if (results.length === 0) throw new Error('Codex windows closed before apply could finish');
 
-  await updateState({
+  await updateState(state=>({...state,
     activeThemeId: themeId,
     appliedAt: new Date().toISOString(),
     debugPort: port,
-  });
+    ...(!scheduled?{schedulePausedUntil:manualSchedulePause(state)}:{}),
+  }));
   return { themeId, themeName: record.name, port, verified: true, windows: results.length, restarted };
 }
 
@@ -153,7 +157,7 @@ export async function restoreSkin(port) {
       cdp.close();
     }
   }
-  await updateState({ activeThemeId: null, restoredAt: new Date().toISOString() });
+  await updateState(s=>({...s,activeThemeId:null,restoredAt:new Date().toISOString(),schedulePausedUntil:manualSchedulePause(s)}));
   return { removed };
 }
 

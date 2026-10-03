@@ -6,12 +6,11 @@
 // codexskin schema - the stored theme is pure codexskin; the manifest data is
 // kept as provenance metadata.
 //
-// What we deliberately do NOT do here: signature verification (manifest.sig is
-// reserved but unsigned in the wild), compatibility-profile fetching, or
-// network anything. Imports stay local-only.
+// Signature verification is opt-in through trusted keys and requireSignature.
+// Compatibility-profile fetching is not performed. Imports stay local-only.
 
 import { createHash } from "node:crypto";
-import { detectImageMedia } from "./image.js";
+import { detectImageMedia,inspectImage } from "./image.js";
 import { validateSafeCss } from "./safe-css.js";
 import { normalizeTheme } from "./theme.js";
 import {
@@ -330,6 +329,7 @@ export function importOfficialPackage(files, options = {}) {
   }
   // Canonicalize to codexskin's image naming (jpeg -> jpg).
   const canonicalImage = media === "image/jpeg" ? "background.jpg" : background;
+  inspectImage(imageBytes);
 
   const css = validateSafeCss(files.get("theme.css").toString("utf8"));
 

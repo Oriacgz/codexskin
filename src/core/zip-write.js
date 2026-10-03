@@ -1,24 +1,8 @@
+import { crc32 } from './crc32.js';
 // Deterministic zip writer (stored entries) - shared by sample theme builds
 // and the `sign-manifest` CLI. Same module discipline as zip.js: exact
 // structures, no cleverness. Deterministic output (fixed timestamps, zero
 // external attrs) so signing workflows can reproduce archives bit-for-bit.
-
-function crc32Table() {
-  const table = new Int32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c;
-  }
-  return table;
-}
-const CRC_TABLE = crc32Table();
-
-function crc32(buf) {
-  let c = -1;
-  for (let i = 0; i < buf.length; i += 1) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ -1) >>> 0;
-}
 
 /**
  * Build a deterministic zip archive (stored entries) from Map<name, Buffer>.

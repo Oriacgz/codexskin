@@ -17,13 +17,13 @@ import fs from "node:fs/promises";
 import { spawn } from "node:child_process";
 import process from "node:process";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { createUiServer } from "../src/core/ui-server.js";
 import { createThemeStore } from "../src/core/store.js";
 import { createWatchDeps, runWatchSupervised } from "../src/core/watch.js";
 import { dataDir, IS_WIN } from "../src/core/paths.js";
 import { writeTrayAssets, spawnTray, stopOrphanTrays } from "../src/core/tray.js";
 import { withFileLock, writeJsonAtomic } from '../src/core/atomic.js';
+import {appendRotatingLog} from '../src/core/log.js';
 
 
 const args = process.argv.slice(2);
@@ -43,11 +43,6 @@ const IDLE_TIMEOUT_MS = 30 * 1000;
 // If no window ever checks in (browser failed to open) and there is no tray,
 // the app exits after this grace period instead of lingering forever.
 const FIRST_WINDOW_GRACE_MS = 120 * 1000;
-
-function die(message) {
-  console.error(`codexskin-ui: ${message}`);
-  process.exit(1);
-}
 
 // --- Browser discovery (Windows: Edge is always present on Win10/11) --------
 
@@ -189,7 +184,7 @@ async function main() {
         intervalMs: 3_000,
         log: (message) => {
           console.log(`[watch] ${message}`);
-          fs.appendFile(watchLogPath, `[${new Date().toISOString()}] ${message}\n`).catch(() => {});
+          appendRotatingLog(watchLogPath, `[${new Date().toISOString()}] ${message}`).catch(() => {});
         },
       });
       runWatchSupervised(deps, { shouldStop: () => closing || isQuitRequested() }).catch((error) => {

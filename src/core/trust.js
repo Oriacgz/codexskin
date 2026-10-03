@@ -15,7 +15,7 @@
 // signatures are required).
 
 import { createPrivateKey, createPublicKey, sign as edSign, verify as edVerify, generateKeyPairSync } from "node:crypto";
-import fs from "node:fs/promises";
+import {readFileLimited} from './read-file.js';
 
 export const SIGNATURE_SCHEMA = "codexskin-signature/1";
 const MAX_ENVELOPE_BYTES = 4096;
@@ -44,7 +44,7 @@ function decodeBase64(value, label) {
 export async function loadTrustedKeys(filePath) {
   let text;
   try {
-    text = await fs.readFile(filePath, "utf8");
+    text = await readFileLimited(filePath, MAX_TRUSTED_KEYS_BYTES, "utf8");
   } catch (error) {
     if (error?.code === "ENOENT") fail(`trusted-keys file not found: ${filePath}`);
     fail(`cannot read trusted-keys file: ${error?.message ?? error}`);

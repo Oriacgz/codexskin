@@ -1,68 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  buildIco,
   buildStartupShortcutCmd,
   buildTrayHostPs1,
-  trayIconRgba,
 } from "../src/core/tray.js";
-
-test("tray: trayIconRgba paints a rounded-square glyph with transparent corners", () => {
-  const rgba = trayIconRgba(32);
-  assert.equal(rgba.length, 32 * 32 * 4);
-  // Center is opaque.
-  const c = (16 * 32 + 16) * 4;
-  assert.equal(rgba[c + 3], 255);
-  // Exact corners are transparent (rounded mask).
-  const corner = (0 * 32 + 0) * 4;
-  assert.equal(rgba[corner + 3], 0);
-  // Center pixel comes from the teal->violet gradient (not pure white/black).
-  assert.notEqual(rgba[c], 255);
-  assert.notEqual(rgba[c + 1], 255);
-});
-
-test("tray: buildIco writes a classic 32bpp DIB frame (no PNG frame)", () => {
-  const size = 32;
-  const rgba = trayIconRgba(size);
-  const ico = buildIco(size, rgba);
-  // ICONDIR: reserved 0, type 1, count 1.
-  assert.equal(ico.readUInt16LE(0), 0);
-  assert.equal(ico.readUInt16LE(2), 1);
-  assert.equal(ico.readUInt16LE(4), 1);
-  // Entry: 32x32, 32bpp, image offset 22.
-  assert.equal(ico[6], 32);
-  assert.equal(ico[7], 32);
-  assert.equal(ico.readUInt16LE(10), 1); // planes
-  assert.equal(ico.readUInt16LE(12), 32); // bpp
-  const xorStride = size * 4;
-  const andStride = Math.ceil(size / 32) * 4;
-  const dibSize = 40 + xorStride * size + andStride * size;
-  assert.equal(ico.readUInt32LE(14), dibSize);
-  assert.equal(ico.readUInt32LE(18), 22);
-  assert.equal(ico.length, 22 + dibSize);
-  // BITMAPINFOHEADER: biSize 40, biHeight 2*size (XOR+AND), 1 plane, 32bpp,
-  // BI_RGB compression - the shape System.Drawing.Icon loads everywhere.
-  assert.equal(ico.readUInt32LE(22), 40);
-  assert.equal(ico.readInt32LE(26), size);
-  assert.equal(ico.readInt32LE(30), size * 2);
-  assert.equal(ico.readUInt16LE(34), 1);
-  assert.equal(ico.readUInt16LE(36), 32);
-  assert.equal(ico.readUInt32LE(38), 0);
-  // First XOR pixel = bottom-left source pixel, converted RGBA->BGRA.
-  const src = ((size - 1) * size + 0) * 4;
-  const dst = 22 + 40;
-  assert.equal(ico[dst], rgba[src + 2]);
-  assert.equal(ico[dst + 1], rgba[src + 1]);
-  assert.equal(ico[dst + 2], rgba[src]);
-  assert.equal(ico[dst + 3], rgba[src + 3]);
-});
-
-test("tray: buildIco validates size and buffer length", () => {
-  assert.throws(() => buildIco(0, Buffer.alloc(0)), /size/);
-  assert.throws(() => buildIco(300, Buffer.alloc(16 * 16 * 4)), /size/);
-  assert.throws(() => buildIco(16, Buffer.alloc(12 * 12 * 4)), /mismatch/);
-  assert.throws(() => buildIco(16, "nope"), /buffer required/);
-});
 
 test("tray: buildTrayHostPs1 renders a host that wires menu actions to the tokened server", () => {
   const ps1 = buildTrayHostPs1();

@@ -32,6 +32,9 @@ lerna-debug.log*
 .env.*
 !.env.example
 *.local
+*.private.pem
+*.pfx
+*.p12
 
 # Project-specific artifacts
 audit/preview-data/

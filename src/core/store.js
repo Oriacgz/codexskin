@@ -5,7 +5,7 @@ import path from 'node:path';
 import { importThemePackage } from './package.js';
 import { normalizeTheme } from './theme.js';
 import { validateSafeCss } from './safe-css.js';
-import { detectImageMedia } from './image.js';
+import { detectImageMedia,inspectImage } from './image.js';
 import { withFileLock, writeJsonAtomic } from './atomic.js';
 export function sha256(bytes) { return createHash('sha256').update(bytes).digest('hex'); }
 export function contentFingerprint({ theme, image, css }) {
@@ -20,6 +20,8 @@ export function createThemeStore(themesDir) {
   const registryFile = id => path.join(themesDir, `${id}.json`);
   async function readEntry(id) {
     assertId(id);
+    const stat = await fs.lstat(registryFile(id));
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 256 * 1024) throw new Error(`theme ${id}: invalid registry file`);
     const entry = JSON.parse(await fs.readFile(registryFile(id), 'utf8'));
     if (entry.id !== id || !Array.isArray(entry.files)) throw new Error(`theme ${id}: invalid registry (re-import it)`);
     return entry;
@@ -34,6 +36,13 @@ export function createThemeStore(themesDir) {
     return entries;
   }
   async function recover() {
+    const mergeJournal=path.join(themesDir,'.merge-transaction.json');
+    if(await exists(mergeJournal)){
+      const journal=JSON.parse(await fs.readFile(mergeJournal,'utf8'));
+      if(!Array.isArray(journal.ids)||journal.ids.some(id=>!validId(id))||new Set(journal.ids).size!==journal.ids.length||!/^\.stage-merge-[a-z0-9-]+$/.test(journal.stage))throw new Error('Invalid backup merge journal');
+      for(const id of journal.ids){assertId(id);await fs.rm(path.join(themesDir,id),{recursive:true,force:true});await fs.rm(registryFile(id),{force:true});cache.delete(id);}
+      await fs.rm(path.join(themesDir,journal.stage),{recursive:true,force:true});await fs.rm(mergeJournal,{force:true});
+    }
     for (const name of await fs.readdir(themesDir)) {
       if (!/^\.transaction-[a-z0-9.-]+\.json$/.test(name)) continue;
       const file=path.join(themesDir,name), journal=JSON.parse(await fs.readFile(file,'utf8'));
@@ -70,6 +79,7 @@ export function createThemeStore(themesDir) {
       || declared.some(name=>!['theme.json','theme.css',imageName].includes(name))) throw new Error(`theme ${id}: undeclared or missing payload (re-import it)`);
     const stats=await Promise.all(names.map(name=>fs.lstat(path.join(dir,name))));
     if(stats.some(stat=>!stat.isFile() || stat.isSymbolicLink())) throw new Error(`theme ${id}: payload must contain regular files`);
+    if(stats.some((stat,index)=>stat.size>(names[index]===imageName?10*1024*1024:names[index]==='theme.css'?262144:1024*1024))) throw new Error(`theme ${id}: payload exceeds size limits (re-import it)`);
     const signature=JSON.stringify([entry,stats.map(stat=>[stat.size,stat.mtimeMs,stat.ctimeMs,stat.ino])]);
     if(cache.get(id)?.signature===signature) return copyPayload(cache.get(id).payload);
     const buffers=new Map(await Promise.all(names.map(async name=>[name,await fs.readFile(path.join(dir,name))])));
@@ -82,6 +92,7 @@ export function createThemeStore(themesDir) {
     const extension=imageName.split('.').at(-1).toLowerCase();
     const expected=extension==='png'?'image/png':extension==='webp'?'image/webp':'image/jpeg';
     if(mime!==expected) throw new Error(`theme ${id}: invalid background image`);
+    inspectImage(image);
     theme.image=imageName;
     const css=buffers.has('theme.css')?validateSafeCss(buffers.get('theme.css').toString('utf8')):null;
     const payload={theme,css,dataUrl:`data:${mime};base64,${image.toString('base64')}`};
@@ -94,7 +105,10 @@ export function createThemeStore(themesDir) {
       const out=[];
       for(const entry of await registry()) {
         try {
-          const dir=path.join(themesDir,entry.id),names=await fs.readdir(dir);
+          const dir=path.join(themesDir,entry.id),directoryStat=await fs.lstat(dir);
+          if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) throw new Error('invalid payload directory');
+          const names=await fs.readdir(dir),manifestStat=await fs.lstat(path.join(dir,'theme.json'));
+          if (!manifestStat.isFile() || manifestStat.isSymbolicLink() || manifestStat.size > 1024 * 1024) throw new Error('invalid theme manifest');
           const image=names.find(name=>/^background\.(png|jpe?g|webp)$/i.test(name));
           if(!image || !names.includes('theme.json')) throw new Error('missing files');
           out.push({...entry,files:{id:entry.id,theme:JSON.parse(await fs.readFile(path.join(dir,'theme.json'),'utf8')),image:path.join(dir,image),css:names.includes('theme.css')?path.join(dir,'theme.css'):null}});
@@ -104,6 +118,30 @@ export function createThemeStore(themesDir) {
     }); },
     async get(id) {assertId(id);const entries=await this.list();const entry=entries.find(item=>item.id===id);if(!entry) throw new Error(`theme ${id} is not installed`);return entry;},
     async loadPayload(id) {return locked(()=>load(id));},
+    async mergePackages(buffers) {
+      // Validate every package before staging or mutating the collection.
+      const packages=buffers.map(bytes=>importThemePackage(bytes,{trustedKeys:null,requireSignature:false}));
+      if(new Set(packages.map(pkg=>pkg.theme.id)).size!==packages.length)throw new Error('Duplicate backup IDs');
+      return locked(async()=>{
+        const additions=[],skipped=[];
+        for(const pkg of packages){if(await exists(registryFile(pkg.theme.id))||await exists(path.join(themesDir,pkg.theme.id)))skipped.push(pkg.theme.id);else additions.push(pkg);}
+        if(!additions.length)return {added:[],skipped};
+        const stageName='.stage-merge-'+randomUUID(),stage=path.join(themesDir,stageName),journal=path.join(themesDir,'.merge-transaction.json');
+        await fs.mkdir(stage);let recorded=false;
+        try{
+          for(const pkg of additions){
+            const {theme,image,css}=pkg,dir=path.join(stage,theme.id);await fs.mkdir(dir);const files=[];
+            async function put(name,bytes){await fs.writeFile(path.join(dir,name),bytes,{mode:0o600});files.push({name,sha256:sha256(bytes),bytes:bytes.length});}
+            await put('theme.json',Buffer.from(JSON.stringify({...theme,image:image.name},null,2)));await put(image.name,image.bytes);if(css!==null)await put('theme.css',Buffer.from(css));
+            await writeJsonAtomic(path.join(stage,theme.id+'.json'),{id:theme.id,name:theme.name,fingerprint:contentFingerprint(pkg),transactionId:randomUUID(),installedAt:new Date().toISOString(),source:pkg.meta?.source??'codexskin-simple',meta:pkg.meta??null,files});
+          }
+          const ids=additions.map(pkg=>pkg.theme.id);await writeJsonAtomic(journal,{ids,stage:stageName});recorded=true;
+          for(const id of ids){await fs.rename(path.join(stage,id),path.join(themesDir,id));await fs.rename(path.join(stage,id+'.json'),registryFile(id));cache.delete(id);}
+          await fs.rm(journal,{force:true});return {added:ids,skipped};
+        }catch(error){if(recorded)await recover();throw error;}
+        finally{await fs.rm(stage,{recursive:true,force:true});}
+      });
+    },
     async installFromZip(zipBuffer,options={}) {
       const pkg=importThemePackage(zipBuffer,options),{theme,image,css}=pkg,fingerprint=contentFingerprint(pkg);
       return locked(async()=>{

@@ -1,7 +1,9 @@
 // Built-in WebSocket supports masking, continuation frames and buffered reads.
+import {assertDebugPortSafe} from './debug-security.js';
 function error(message) { return new Error(`cdp: ${message} (is Codex running with --remote-debugging-port?)`); }
 const hosts = new Map();
 export async function listTargets(port, { timeoutMs = 4_000 } = {}) {
+  await assertDebugPortSafe(port);
   const signal = AbortSignal.timeout(timeoutMs);
   let last;
   for (const host of ['127.0.0.1', '[::1]']) {
@@ -33,15 +35,16 @@ export function classifyPageTargets(targets) {
     && (!target.url || isCodexTarget(target))), overlay: pages.filter(isOverlay) };
 }
 export async function connectCdp(port, { targetId, target, timeoutMs = 10_000 } = {}) {
+  await assertDebugPortSafe(port,{fresh:true});
   const targets = target ? [target] : await listTargets(port);
   const page = target ?? (targetId ? targets.find(item => item.id === targetId)
     : classifyPageTargets(targets).skinTargets[0]);
   if (!page?.webSocketDebuggerUrl) throw error('no debuggable page target');
   const url = new URL(page.webSocketDebuggerUrl);
-  if (url.protocol !== 'ws:' || !['127.0.0.1', 'localhost', '[::1]', '::1'].includes(url.hostname.toLowerCase())) {
+  if (url.protocol !== 'ws:' || url.username || url.password || !['127.0.0.1', 'localhost', '[::1]', '::1'].includes(url.hostname.toLowerCase())) {
     throw error(`refusing non-loopback debugger URL (${url.hostname})`);
   }
-  url.hostname = hosts.get(port) ?? url.hostname;
+  url.hostname = hosts.get(port) ?? (url.hostname==='localhost'?'127.0.0.1':url.hostname);
   url.port = String(port);
   const socket = new WebSocket(url);
   const pending = new Map();

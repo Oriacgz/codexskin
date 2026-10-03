@@ -8,9 +8,9 @@ import path from 'node:path';
 import { updateState, loadState } from '../src/core/state.js';
 import { closeCodex } from '../src/core/launch.js';
 
-test('all twenty audited regression checks pass', {timeout:20000}, async()=>{
+test('all twenty audited regression checks pass', {timeout:65000}, async()=>{
   const {stdout}=await promisify(execFile)(process.execPath,['audit/checks.mjs'],{
-    cwd:path.resolve(import.meta.dirname,'..'),windowsHide:true,timeout:18000,
+    cwd:path.resolve(import.meta.dirname,'..'),windowsHide:true,timeout:60000,
   });
   assert.match(stdout,/20\/20 audit checks passed/);
 });

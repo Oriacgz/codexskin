@@ -1,3 +1,4 @@
+import { crc32 } from './crc32.js';
 // Dependency-free ZIP reader for theme packages.
 //
 // Hard limits, fail closed:
@@ -15,22 +16,6 @@ export const ZIP_LIMITS = Object.freeze({
   maxEntryBytes: 16 * 1024 * 1024, // background image cap is 10 MiB, but stay generic
   maxTotalBytes: 64 * 1024 * 1024,
 });
-
-const CRC_TABLE = (() => {
-  const table = new Int32Array(256);
-  for (let n = 0; n < 256; n += 1) {
-    let c = n;
-    for (let k = 0; k < 8; k += 1) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-    table[n] = c;
-  }
-  return table;
-})();
-
-function crc32(buf) {
-  let c = -1;
-  for (let i = 0; i < buf.length; i += 1) c = CRC_TABLE[(c ^ buf[i]) & 0xff] ^ (c >>> 8);
-  return (c ^ -1) >>> 0;
-}
 
 function fail(message) {
   throw new Error(`zip: ${message}`);
@@ -51,7 +36,8 @@ function checkName(name) {
  * Parse a ZIP buffer, returning Map<name, Buffer> for file entries (sorted).
  * Throws on any structural anomaly - we never "best effort" a package.
  */
-export function readZip(buffer) {
+export function readZip(buffer, { maxTotalBytes = ZIP_LIMITS.maxTotalBytes } = {}) {
+  if (!Number.isSafeInteger(maxTotalBytes) || maxTotalBytes < 0 || maxTotalBytes > ZIP_LIMITS.maxTotalBytes) fail('invalid expansion budget');
   if (!Buffer.isBuffer(buffer)) fail("input must be a Buffer");
   if (buffer.length > ZIP_LIMITS.maxArchiveBytes) fail("archive too large");
   if (buffer.length < 22) fail("not a zip archive");
@@ -121,6 +107,7 @@ export function readZip(buffer) {
     const dataStart = localOffset + 30 + lNameLen + lExtraLen;
     if (dataStart + compSize > cdOffset) fail("entry data out of bounds");
     if (expandedSize > ZIP_LIMITS.maxEntryBytes) fail(`entry too large: ${name}`);
+    if (totalBytes + expandedSize > maxTotalBytes) fail('expanded archive too large');
 
     const comp = buffer.subarray(dataStart, dataStart + compSize);
     let data;
@@ -128,7 +115,7 @@ export function readZip(buffer) {
       data = Buffer.from(comp); // copy: comp is a view into the archive buffer
     } else {
       try {
-        data = inflateRawSync(comp, { maxOutputLength: ZIP_LIMITS.maxEntryBytes });
+        data = inflateRawSync(comp, { maxOutputLength: Math.max(1, Math.min(ZIP_LIMITS.maxEntryBytes, maxTotalBytes - totalBytes)) });
       } catch {
         fail(`corrupt deflate stream in ${name}`);
       }
@@ -136,7 +123,7 @@ export function readZip(buffer) {
     if (data.length > ZIP_LIMITS.maxEntryBytes) fail(`entry too large: ${name}`);
     if (data.length !== expandedSize) fail(`expanded size mismatch: ${name}`);
     totalBytes += data.length;
-    if (totalBytes > ZIP_LIMITS.maxTotalBytes) fail("expanded archive too large");
+    if (totalBytes > maxTotalBytes) fail("expanded archive too large");
     if (crc32(data) !== crcExpected) fail(`checksum mismatch for ${name}`);
     if (files.has(name)) fail(`duplicate entry: ${name}`);
     files.set(name, data);
