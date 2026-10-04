@@ -26,7 +26,7 @@ Install the official Codex desktop app first. Open `codexskin-app.exe` from the
 release folder. Keep the accompanying license files with the application.
 No separate Node.js installation is needed for the packaged executable.
 
-1. Choose **Import theme** for a supported `.zip` or `.codextheme`, drag the package into the window, or choose **Create theme** for your own image. The **Browse Codex Themes** link opens [the theme directory](https://codexthemes.app/themes); download a package there and import it locally.
+1. Choose **Import theme** for a supported `.zip` or `.codextheme`, drag the package into the window, or choose **Create theme** for your own image. The **Browse theme library** link opens [the theme directory](https://codextheme-web-frontend-6rsmiomnd.vercel.app/#/community); download a package there and import it locally.
 2. Use **Edit** to change brightness, accent, surface colors, opacity, and readability settings.
 3. Open **Installed themes**, choose a theme, and click **Switch theme**.
 4. Use **Restore official look** to remove the skin.
@@ -186,7 +186,7 @@ Security review and validation details: [October 2026 audit](audit/SECURITY-AUDI
 
 A supported `.codextheme` is a ZIP container and follows the same validation
 as `.zip` imports. The extension alone does not guarantee compatibility.
-Download a package from [Codex Themes](https://codexthemes.app/themes), then
+Download a package from [codexskin Community](https://codextheme-web-frontend-6rsmiomnd.vercel.app/#/community), then
 drop it into the control window or select it with **Import theme**.
 
 A simple ZIP contains `theme.json`, one `background.png`, `background.jpg`,
@@ -360,4 +360,5 @@ This notice describes included licenses; it is not a legal clearance certificate
 paths exist but have not received equivalent live validation. Theme selectors
 can break after Codex updates. Automated tests do not prove complete platform
 compatibility or legal clearance. The software is provided without warranty.
+
 
