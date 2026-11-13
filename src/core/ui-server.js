@@ -1,3 +1,5 @@
+import { importThemePackage as inspectCommunityPackage } from "./package.js";
+import { pendingLibraryTheme, dismissLibraryTheme, fetchLibraryTheme, registerLibraryProtocol } from "./library-import.js";
 import { activateCodexWindow } from './launch-window.js';
 import { createCustomTheme, defaultSettings, validateSettings, exportThemePackage } from './customization.js';
 // Local UI server for the codexskin desktop interface.
@@ -179,6 +181,28 @@ export function createUiServer({ openWindow = async () => {}, apply = applyTheme
     const route = parts.slice(2).join("/");
 
     try {
+      if (route === "register-library-links" && req.method === "POST") {
+        if (process.platform !== "win32" || !isSea()) throw Error("Website links require the updated packaged Windows app.");
+        await registerLibraryProtocol(); json(res, 200, { ok: true }); return;
+      }
+      if (route === "library-import" && req.method === "GET") { json(res, 200, { id: await pendingLibraryTheme() }); return; }
+      if (route === "library-import" && req.method === "POST") {
+        const input = JSON.parse((await readBody(req, 4096)).toString("utf8"));
+        const pending = await pendingLibraryTheme();
+        if (!pending || pending !== input.id) throw Error("This community import request expired.");
+        if (input.confirm === true) {
+          const bytes = await fetchLibraryTheme(pending);
+          const result = await enqueueUi(async () => {
+            if (await pendingLibraryTheme() !== pending) throw new Error("This community import was canceled or replaced.");
+            const inspected = inspectCommunityPackage(bytes, { trustedKeys: null, requireSignature: false });
+            if ((await loadState()).activeThemeId === inspected.theme.id) throw new Error("Switch away from this active theme before importing an update, or download the package and use normal import.");
+            return store.installFromZip(bytes, { trustedKeys: null, requireSignature: false });
+          });
+          await dismissLibraryTheme(pending);
+          json(res, 200, { ok: true, id: result.theme.id });
+        } else { await dismissLibraryTheme(pending); json(res, 200, { ok: true }); }
+        return;
+      }
       if (route === "app" && req.method === "GET") {
         res.writeHead(200, {
           "content-type": "text/html; charset=utf-8",
@@ -310,6 +334,7 @@ export function createUiServer({ openWindow = async () => {}, apply = applyTheme
           autostartEnabled: autostart,
           autoRestartEnabled: await autoRestartEnabled(),
           platform: process.platform,
+          libraryLinksSupported: process.platform === "win32" && isSea(),
         });
         return;
       }

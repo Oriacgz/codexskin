@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { isSea } from "node:sea";
+import { queueLibraryTheme, registerLibraryProtocol, libraryProtocolArgument } from "../src/core/library-import.js";
 // codexskin desktop app launcher.
 //
 // Starts the tokened loopback UI server and, on Windows, the native system
@@ -27,9 +29,10 @@ import {appendRotatingLog} from '../src/core/log.js';
 
 
 const args = process.argv.slice(2);
+const libraryLink = libraryProtocolArgument(args);
 const noOpen = args.includes("--no-open");
 const trayOnly = args.includes("--tray-only") || args.includes("--hidden");
-const noWatch = args.includes("--no-watch");
+const noWatch = args.includes("--no-watch") || Boolean(libraryLink);
 const noTray = args.includes('--no-tray');
 const portFlagIdx = args.indexOf("--port");
 const preferredPort = portFlagIdx !== -1 ? Number(args[portFlagIdx + 1]) : 0;
@@ -94,6 +97,8 @@ async function openControlWindow(url) {
 // No top-level await: the SEA bundle targets CJS.
 
 async function main() {
+  if (libraryLink) await queueLibraryTheme(libraryLink);
+  if (isSea() && args.includes("--register-protocol") && process.platform === "win32") await registerLibraryProtocol().catch(error => console.error(error.message));
   await fs.mkdir(dataDir(), { recursive: true });
   // Single instance: if a live desktop app is already running (its tokened
   // server answers), just open its control window and exit. Without this, a

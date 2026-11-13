@@ -91,9 +91,9 @@ async function main() {
   await fs.cp(path.join(root, 'third-party-licenses'), path.join(distDir, 'third-party-licenses'), { recursive: true });
   await fs.copyFile(path.join(root,'assets','codexskin.ico'),path.join(distDir,'codexskin.ico'));
   await fs.mkdir(path.join(distDir, 'audit'), { recursive: true });
-  await fs.copyFile(path.join(root, 'audit', 'SECURITY-AUDIT.md'), path.join(distDir, 'audit', 'SECURITY-AUDIT.md'));
+  try { await fs.copyFile(path.join(root, 'audit', 'SECURITY-AUDIT.md'), path.join(distDir, 'audit', 'SECURITY-AUDIT.md')); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   await fs.mkdir(path.join(distDir, 'docs'), { recursive: true });
-  for(const name of ['SECURITY-IMPLEMENTATION-PLAN.md','WINDOWS-SIGNING.md','MACOS-VALIDATION.md','PHASE-3-AUTOMATION.md'])await fs.copyFile(path.join(root,'docs',name),path.join(distDir,'docs',name));
+  for(const name of ['SECURITY-IMPLEMENTATION-PLAN.md','WINDOWS-SIGNING.md','MACOS-VALIDATION.md','PHASE-3-AUTOMATION.md']) { try { await fs.copyFile(path.join(root,'docs',name),path.join(distDir,'docs',name)); } catch (error) { if (error.code !== 'ENOENT') throw error; } }
 
   const stat = await fs.stat(exePath);
   console.log(`\nBuilt ${exePath} (${(stat.size / 1024 / 1024).toFixed(1)} MiB)`);

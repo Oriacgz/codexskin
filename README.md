@@ -7,7 +7,7 @@ codexskin applies styles at runtime through a local debugging connection. It
 does not patch the official application's files. It uses a dedicated Codex
 profile, so you may need to sign in again in that profile.
 
-CLI archive inputs are bounded to 32 MiB before reading; signing and trusted-key files are bounded to 256 KiB. The [security audit](audit/SECURITY-AUDIT.md) records the latest fixes and verification limits.
+CLI archive inputs are bounded to 32 MiB before reading; signing and trusted-key files are bounded to 256 KiB.
 
 ## Features
 
@@ -364,3 +364,9 @@ compatibility or legal clearance. The software is provided without warranty.
 
 
 
+
+## Community import links
+
+New Windows builds can handle links from the theme library. In Preferences, choose **Enable website links** once. Registration applies only to your Windows user. The command-line alternative is `codexskin-app.exe --register-protocol --no-watch`.
+
+Opening a community link asks for confirmation before downloading and validating the package. Only the fixed library origin is allowed. The import does not automatically apply a theme; updates matching the active theme require switching away first. Older released executables need a new build before this feature is available. Normal ZIP downloads remain available.
